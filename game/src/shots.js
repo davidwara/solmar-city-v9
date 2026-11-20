@@ -36,6 +36,29 @@ function placeAt(thing, x, y, z) {
   }
 }
 
+// Biscuit's rendered group may hang off the pets system under several
+// names (dog / biscuit / a nested group), and placing the wrong handle
+// leaves the dog at its spawn. Place the first real three.js object
+// found, so the dog actually lands where staging puts it.
+function placeDog(pets, x, z) {
+  if (!pets) return;
+  const tops = [pets.dog, pets.biscuit, pets.dogGroup, pets.pet];
+  const nestedKeys = ['group', 'figure', 'mesh', 'object', 'model'];
+  const isReal = (o) => !!(o && o.position && typeof o.position.set === 'function');
+  for (const top of tops) {
+    if (isReal(top)) { placeAt(top, x, 0, z); return; }
+  }
+  for (const top of tops) {
+    if (!top) continue;
+    for (const key of nestedKeys) {
+      if (isReal(top[key])) { placeAt(top[key], x, 0, z); return; }
+    }
+  }
+  for (const top of tops) {
+    if (top && top.position) { placeAt(top, x, 0, z); return; }
+  }
+}
+
 // The parked car closest to a point on the map — the one Mara drives in
 // the driving poses.
 function nearestParkedCar(cars, x, z) {
@@ -122,9 +145,16 @@ function stageDrive(ctx) {
 function stageChase(ctx) {
   callIf(ctx.daynight, 'setHour', 17);
   stageDrivenCar(ctx, 0, 20, Math.PI);
+  // The Hot Delivery job (job index 1), so the HUD objective matches
+  // the shot — previously the pose left job 0 (First Job) active.
+  callIf(ctx.missions, 'start', 1);
   callIf(ctx.missions, 'armSmugglerDelivery');
   callIf(ctx.police, 'setWanted', 3);
-  callIf(ctx.police, 'place', 0, 0, 42, Math.PI);
+  // Car 0 is the ram car: it covers ~62 m in the 40 frames before the
+  // picture (measured: (0,42) -> (3,-20)), so starting it at z=87 puts
+  // it right on Mara's rear bumper, ramming, at frame 40. The other two
+  // hold their flanking slots behind it.
+  callIf(ctx.police, 'place', 0, 0, 87, Math.PI);
   callIf(ctx.police, 'place', 1, -7, 52, Math.PI);
   callIf(ctx.police, 'place', 2, 7, 58, Math.PI);
   stageTraffic(ctx.traffic, [
@@ -154,17 +184,25 @@ function stageFish(ctx) {
   placeAt(ctx.player, px, 0, pz);
   ctx.player.heading = 0; // face south, out across the bay
   callIf(ctx.fishing, 'cast');
-  // Biscuit the stray dog at Mara's heel.
+  // Biscuit the stray dog at Mara's heel, a few metres north-west of her.
   if (ctx.pets) {
     ctx.pets.markAdopted();
-    const dog = ctx.pets.dog || ctx.pets.biscuit || null;
-    if (dog) placeAt(dog, px + 1.6, 0, pz - 1.2);
+    placeDog(ctx.pets, px - 2.5, 0, pz - 3);
   }
-  // Fixed camera off Mara's shoulder, looking south past the bobber
-  // toward the island and its lighthouse (aimed at the real lighthouse
-  // position, not a guessed point on the water).
+  // Fixed camera north-west of Mara, looking south-east past her and the
+  // bobber toward the island: the old camera sat south of Mara and aimed
+  // straight at the lighthouse, leaving Mara behind it and the bobber
+  // ~84 deg off axis. The bobber lands ~29 m south of Mara, slightly
+  // east, so aim at the Mara/bobber midpoint, nudged a touch toward the
+  // lighthouse to keep it in frame as well.
+  const bx = px + 5.5;
+  const bz = pz + 28.8;
   const beacon = LIGHTHOUSE_POS || { x: 40, z: 330 };
-  ctx.setCamera(px + 10, 5, pz - 8, beacon.x ?? 40, 2, beacon.z ?? 330);
+  const midX = (px + bx) / 2;
+  const midZ = (pz + bz) / 2;
+  const targetX = midX + ((beacon.x ?? 40) - midX) * 0.05;
+  const targetZ = midZ + ((beacon.z ?? 330) - midZ) * 0.05;
+  ctx.setCamera(px - 10, 4.5, pz - 9, targetX, 1, targetZ);
   ctx.setState('playing');
 }
 
@@ -194,9 +232,10 @@ function stageNight(ctx) {
     [1, -10.5, 175],
     [2, 10.5, 150],
   ]);
-  // Fixed camera on the beachfront, looking north past Mara's car toward
-  // the downtown towers.
-  ctx.setCamera(0, 7, 208, 0, 3, 0);
+  // No fixed camera here: the old fixed camera at (0,7,208) sat behind
+  // the beachfront building, so the car was occluded. Use the chase
+  // camera like the drive pose — it rides 9 m behind Mara's car on the
+  // street, looking north past it toward the towers.
   ctx.setState('playing');
 }
 

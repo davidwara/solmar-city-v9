@@ -170,6 +170,7 @@ let lastRaceCountdown = null;
 let lastRaceGate = null;
 let biteToasted = false;
 let adoptShown = false;
+let ramToasted = false;
 let menuAngle = Math.atan2(60, 90);
 
 const savedGame = loadSave();
@@ -1291,6 +1292,14 @@ function tickPlaying(dt) {
     }
     if (policeEvents.busted) handleBusted();
   }
+  // Chase screenshot pose: the RAM RUN warning has to be on screen at
+  // capture (frame 40). The side text already carries it whenever
+  // police.ramming is set; fire a matching toast late in the window so
+  // it is still up for the picture.
+  if (isShot && shotName === 'chase' && police.ramming && frame >= 30 && !ramToasted) {
+    ramToasted = true;
+    hud.toast('3-STAR RAM RUN!');
+  }
   if (state.wanted === 0 && state.health < state.maxHealth) {
     state.health = Math.min(state.maxHealth, state.health + 2 * dt);
   }
@@ -1373,7 +1382,7 @@ function tickPlaying(dt) {
     }
     if (raceEvents.gate != null && raceEvents.gate !== lastRaceGate) {
       lastRaceGate = raceEvents.gate;
-      hud.toast(`Gate ${raceEvents.gate}!`);
+      if (!isShot) hud.toast(`Gate ${raceEvents.gate}!`);
     }
     if (raceEvents.toast) hud.toast(raceEvents.toast);
     if (raceEvents.abandoned) hud.toast('Race abandoned.');
