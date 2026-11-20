@@ -86,6 +86,10 @@ export function createFishing(scene, audio) {
       return fishing.isNearPier(pos);
     },
 
+    pierCheck(pos) {
+      return fishing.isNearPier(pos);
+    },
+
     isNearMarina(pos) {
       if (!pos) return false;
       const dx = pos.x - MARINA_POS.x;
