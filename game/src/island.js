@@ -9,6 +9,9 @@ export const ISLAND_BOUNDS = { minX: -60, maxX: 140, minZ: 300, maxZ: 420 };
 
 export const ISLAND_DOCK_POS = { x: 40, y: 0, z: 306 };
 
+// Alias for main.js (imports ISLAND_DOCK).
+export const ISLAND_DOCK = ISLAND_DOCK_POS;
+
 export const LIGHTHOUSE_POS = { x: 80, y: 0, z: 395 };
 
 const ISLE_PALETTE = [0xf2e3c9, 0xe8b4a0, 0x7fb3c8, 0x9db98a, 0xe6d7b8, 0xd98a7a];
