@@ -120,6 +120,11 @@ export function createDelivery(scene) {
       return best;
     },
 
+    // Alias expected by main.js computeHint: depot-proximity check.
+    depotCheck(pos) {
+      return d.nearDepot(pos);
+    },
+
     // Start a parcel at a depot. Returns the parcel, or null when there
     // is already one in hand or no depot is close enough.
     pickUp(pos) {
