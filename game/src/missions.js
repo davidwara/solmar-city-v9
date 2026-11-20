@@ -306,6 +306,11 @@ export function createMissions(scene) {
       return m.index < MISSIONS.length ? MISSIONS[m.index] : null;
     },
 
+    // Alias used by main.js: the current job object (or null).
+    currentJob() {
+      return m.current();
+    },
+
     // Reset the moving parts of one job kind.
     resetJobState(job) {
       if (!job) return;
@@ -360,6 +365,11 @@ export function createMissions(scene) {
         m.markerPos.copy(job.target);
         marker.position.copy(job.target);
       }
+    },
+
+    // Alias used by main.js: start a job by index.
+    start(index) {
+      return m.startMission(index);
     },
 
     startMission(i) {
