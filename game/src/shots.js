@@ -14,7 +14,6 @@
 // from the staged starting positions.
 
 import { PIER_TIP } from './fishing.js';
-import { LIGHTHOUSE_POS } from './island.js';
 
 export const SHOT_NAMES = ['menu', 'drive', 'chase', 'fish', 'night'];
 
@@ -36,13 +35,14 @@ function placeAt(thing, x, y, z) {
   }
 }
 
-// Biscuit's rendered group may hang off the pets system under several
-// names (dog / biscuit / a nested group), and placing the wrong handle
-// leaves the dog at its spawn. Place the first real three.js object
-// found, so the dog actually lands where staging puts it.
+// Biscuit's rendered group is pets.group (measured at __shotReady), though
+// the pets system may also expose it under several other names (dog /
+// biscuit / a nested group). Place the first real three.js object found,
+// starting with the rendered group itself, so the dog actually lands
+// where staging puts it.
 function placeDog(pets, x, z) {
   if (!pets) return;
-  const tops = [pets.dog, pets.biscuit, pets.dogGroup, pets.pet];
+  const tops = [pets.group, pets.dog, pets.biscuit, pets.dogGroup, pets.pet];
   const nestedKeys = ['group', 'figure', 'mesh', 'object', 'model'];
   const isReal = (o) => !!(o && o.position && typeof o.position.set === 'function');
   for (const top of tops) {
@@ -151,10 +151,12 @@ function stageChase(ctx) {
   callIf(ctx.missions, 'armSmugglerDelivery');
   callIf(ctx.police, 'setWanted', 3);
   // Car 0 is the ram car: it covers ~62 m in the 40 frames before the
-  // picture (measured: (0,42) -> (3,-20)), so starting it at z=87 puts
-  // it right on Mara's rear bumper, ramming, at frame 40. The other two
-  // hold their flanking slots behind it.
-  callIf(ctx.police, 'place', 0, 0, 87, Math.PI);
+  // picture, so starting it at z=95 puts it ~13 m behind Mara's bumper
+  // at frame 40. The old z=87 left only a 5 m gap, putting the car ~4 m
+  // in front of the chase camera and hiding Mara entirely. The 4 m
+  // sideways offset keeps Mara visible beside it even if the gap ends
+  // up small. The other two hold their flanking slots behind it.
+  callIf(ctx.police, 'place', 0, 4, 95, Math.PI);
   callIf(ctx.police, 'place', 1, -7, 52, Math.PI);
   callIf(ctx.police, 'place', 2, 7, 58, Math.PI);
   stageTraffic(ctx.traffic, [
@@ -185,24 +187,25 @@ function stageFish(ctx) {
   ctx.player.heading = 0; // face south, out across the bay
   callIf(ctx.fishing, 'cast');
   // Biscuit the stray dog at Mara's heel, a few metres north-west of her.
+  // ABSOLUTE spot from the measured runtime facts (Mara (-155.5,0,235)):
+  // the pier-tip variables did not evaluate to Mara's position at staging
+  // time, so derive nothing from them here. The per-frame hook in
+  // main.js re-applies this same spot every frame, because the pets
+  // update repositions the rendered group (pets.group) each frame and a
+  // staging-only placement never sticks.
   if (ctx.pets) {
     ctx.pets.markAdopted();
-    placeDog(ctx.pets, px - 2.5, 0, pz - 3);
+    placeDog(ctx.pets, -158, 0, 232);
   }
-  // Fixed camera north-west of Mara, looking south-east past her and the
-  // bobber toward the island: the old camera sat south of Mara and aimed
-  // straight at the lighthouse, leaving Mara behind it and the bobber
-  // ~84 deg off axis. The bobber lands ~29 m south of Mara, slightly
-  // east, so aim at the Mara/bobber midpoint, nudged a touch toward the
-  // lighthouse to keep it in frame as well.
-  const bx = px + 5.5;
-  const bz = pz + 28.8;
-  const beacon = LIGHTHOUSE_POS || { x: 40, z: 330 };
-  const midX = (px + bx) / 2;
-  const midZ = (pz + bz) / 2;
-  const targetX = midX + ((beacon.x ?? 40) - midX) * 0.05;
-  const targetZ = midZ + ((beacon.z ?? 330) - midZ) * 0.05;
-  ctx.setCamera(px - 10, 4.5, pz - 9, targetX, 1, targetZ);
+  // Fixed camera NORTH-WEST of Mara, looking south-east past her and the
+  // bobber toward the bay/island. ABSOLUTE coordinates from the measured
+  // runtime facts (Mara (-155.5,0,235), bobber (-150,0.3,259.4)): the old
+  // camera derived its position from the pier-tip variables and landed
+  // south of Mara at (-160,4.5,244), looking away from her, so she was
+  // behind the camera. Target sits between Mara and the bobber, nudged
+  // toward the bay; the lighthouse sits ~23 deg off axis and stays in
+  // frame.
+  ctx.setCamera(-168, 5, 222, -150, 1, 250);
   ctx.setState('playing');
 }
 

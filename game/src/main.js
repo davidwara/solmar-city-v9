@@ -171,6 +171,7 @@ let lastRaceGate = null;
 let biteToasted = false;
 let adoptShown = false;
 let ramToasted = false;
+let ramToast40 = false;
 let menuAngle = Math.atan2(60, 90);
 
 const savedGame = loadSave();
@@ -1294,10 +1295,18 @@ function tickPlaying(dt) {
   }
   // Chase screenshot pose: the RAM RUN warning has to be on screen at
   // capture (frame 40). The side text already carries it whenever
-  // police.ramming is set; fire a matching toast late in the window so
-  // it is still up for the picture.
+  // police.ramming is set; fire a matching toast once ramming starts
+  // (frames 30-39), then RE-FIRE it on the capture frame: the toast
+  // hides on a ~2.6 s wall-clock timeout, but frames 30 -> 40 take ~5 s
+  // wall at ~2 FPS headless, so the first toast is already gone by the
+  // picture. tickPlaying sees frame 39 on the iteration that sets
+  // __shotReady at frame 40, so that is the tick to re-fire on.
   if (isShot && shotName === 'chase' && police.ramming && frame >= 30 && !ramToasted) {
     ramToasted = true;
+    hud.toast('3-STAR RAM RUN!');
+  }
+  if (isShot && shotName === 'chase' && frame === 39 && !ramToast40) {
+    ramToast40 = true;
     hud.toast('3-STAR RAM RUN!');
   }
   if (state.wanted === 0 && state.health < state.maxHealth) {
@@ -1417,6 +1426,16 @@ function tickPlaying(dt) {
     } else {
       setTimeout(() => { if (state.mode === 'story') state.mode = 'playing'; }, 3000);
     }
+  }
+  // Fish screenshot pose: the pets update repositions Biscuit's rendered
+  // group (pets.group) every frame, so the staging-only placement never
+  // sticks — the group reads back at its spawn, ~125 m from Mara. Re-apply
+  // the staged spot after the update, every frame, so Biscuit is at Mara's
+  // heel in the captured frame. This runs after pets.update and before the
+  // frame renders, so the position it sets is the one on screen at frame 40.
+  if (isShot && shotName === 'fish' && pets.group && pets.group.position
+    && typeof pets.group.position.set === 'function') {
+    pets.group.position.set(-158, 0, 232);
   }
 
   // Audio and autosave.
