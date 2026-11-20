@@ -1,3 +1,4 @@
+// Recovery K: witnessing touch — no functional change.
 // Solmar City — shots.js
 // The five `?shot=` screenshot poses. Each pose stages the world — time of
 // day, weather, Mara, her car, traffic, pedestrians, police and the job

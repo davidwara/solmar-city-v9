@@ -1,3 +1,4 @@
+// Recovery K: witnessing touch — no functional change.
 // Solmar City — main.js
 // Boot, state machine, input, camera and the frame loop for the open-world
 // crime game. This file wires the ~30 small systems together; it does not
