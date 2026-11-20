@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solmar City — Open-World Crime</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; overflow: hidden; background: #07090d; color: #f2ede3;
+    font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  }
+  #game, #game canvas { position: fixed; inset: 0; display: block; }
+  #game canvas { width: 100%; height: 100%; }
+  .hidden { display: none !important; }
+  .panel {
+    background: rgba(8, 12, 18, 0.72); border: 1px solid rgba(245, 197, 66, 0.35);
+    border-radius: 10px; padding: 6px 10px;
+  }
+  #hud { position: fixed; inset: 0; z-index: 5; pointer-events: none; font-size: 14px; }
+  #health-bar { position: absolute; top: 14px; left: 14px; width: 248px; }
+  #health-bar .row, #stamina-bar .row { display: flex; align-items: center; gap: 8px; }
+  #health-label, #stamina-label { font-size: 11px; letter-spacing: 2px; color: #f5c542; min-width: 62px; }
+  #health-text { font-weight: 700; color: #fff; }
+  .bar-track { flex: 1; height: 12px; background: rgba(255, 255, 255, 0.14); border-radius: 6px; overflow: hidden; }
+  #health-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #2fae62, #7be495); }
+  #stamina-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #d99a1f, #f5c542); }
+  #stamina-bar { position: absolute; top: 62px; left: 14px; width: 248px; }
+  #money {
+    position: absolute; top: 110px; left: 14px; font-size: 22px; font-weight: 800;
+    color: #f5c542; letter-spacing: 0.5px;
+  }
+  #wanted { position: absolute; top: 152px; left: 14px; font-size: 20px; color: #ff5a4e; letter-spacing: 3px; min-height: 34px; }
+  #top-right { position: absolute; top: 14px; right: 14px; text-align: right; line-height: 1.7; }
+  #top-right span { display: block; }
+  #clock { font-size: 20px; font-weight: 700; color: #fff; }
+  #weather, #station, #turf, #packages { color: #cfd6dd; }
+  #mute-tag { color: #f5c542; font-size: 12px; letter-spacing: 1px; }
+  #title-tag { color: #f5c542; font-weight: 800; letter-spacing: 3px; font-size: 12px; }
+  #objective {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    max-width: 520px; text-align: center; font-weight: 600; color: #fff;
+    border-color: rgba(245, 197, 66, 0.6);
+  }
+  #speed {
+    position: absolute; right: 220px; bottom: 16px; font-size: 26px; font-weight: 800;
+    color: #fff; min-width: 110px; text-align: center;
+  }
+  #ammo { position: absolute; right: 220px; bottom: 64px; color: #f5c542; font-weight: 700; }
+  #hint {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    color: #e8e2d2; max-width: 560px; text-align: center;
+  }
+  #side-line { position: absolute; left: 14px; bottom: 16px; max-width: 320px; color: #cfd6dd; line-height: 1.5; }
+  #minimap {
+    position: absolute; right: 14px; bottom: 14px; width: 190px; height: 190px;
+    border: 2px solid rgba(245, 197, 66, 0.55); border-radius: 8px;
+    background: rgba(6, 12, 20, 0.85);
+  }
+  #toast {
+    position: absolute; top: 96px; left: 50%; transform: translateX(-50%);
+    background: rgba(8, 12, 18, 0.85); border: 1px solid rgba(245, 197, 66, 0.5);
+    color: #fff; border-radius: 8px; padding: 8px 16px; font-weight: 600;
+  }
+  #mission-list {
+    position: absolute; top: 200px; left: 14px; width: 300px; line-height: 1.65;
+    color: #e8e2d2; white-space: pre-line;
+  }
+  #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 30; }
+  .screen {
+    position: fixed; inset: 0; z-index: 20; display: flex; align-items: center;
+    justify-content: center; background: rgba(4, 6, 10, 0.84); padding: 20px;
+  }
+  .card {
+    max-width: 660px; width: 100%; max-height: 92vh; overflow-y: auto;
+    background: #0d1219; border: 1px solid rgba(245, 197, 66, 0.55);
+    border-radius: 14px; padding: 28px 32px; text-align: center;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+  }
+  .eyebrow { color: #f5c542; letter-spacing: 3px; font-size: 12px; margin: 0 0 8px; }
+  h1 { margin: 0 0 6px; font-size: 52px; letter-spacing: 4px; color: #fff; }
+  h1 .gold { color: #f5c542; }
+  .tagline { color: #cfd6dd; font-size: 16px; line-height: 1.5; margin: 0 0 18px; }
+  .controls { list-style: none; margin: 0 auto 20px; padding: 0; text-align: left; max-width: 480px; line-height: 2; color: #e8e2d2; }
+  kbd {
+    background: #1c2530; border: 1px solid #4a5568; border-bottom-width: 2px;
+    border-radius: 5px; padding: 1px 7px; font-family: inherit; font-size: 12px; color: #fff;
+  }
+  .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    background: #f5c542; color: #14100a; border: none; border-radius: 8px;
+    padding: 12px 26px; font-size: 16px; font-weight: 800; cursor: pointer;
+  }
+  .btn:hover { background: #ffd75e; }
+  .btn.ghost { background: transparent; color: #f5c542; border: 1px solid #f5c542; }
+  .note { color: #9aa5b1; font-size: 13px; margin: 16px 0 0; }
+  #wasted-screen h1 { color: #ff5a4e; font-size: 64px; }
+  #wasted-screen p { color: #cfd6dd; line-height: 1.6; }
+  #story-overlay { align-items: flex-end; background: transparent; }
+  #story-box { max-width: 720px; text-align: left; }
+  #story-who { color: #f5c542; font-weight: 800; letter-spacing: 2px; margin: 0 0 6px; }
+  #story-text { font-size: 18px; line-height: 1.6; margin: 0 0 10px; min-height: 56px; }
+  #story-hint { color: #9aa5b1; font-size: 13px; margin: 0; }
+  #garage-list { text-align: left; line-height: 2; margin: 0 0 16px; }
+  #garage-money { color: #f5c542; font-weight: 800; font-size: 18px; margin: 0 0 16px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="game"></div>
+<div id="flash"></div>
+
+<div id="hud">
+  <div id="health-bar" class="panel">
+    <div class="row"><span id="health-label">HEALTH</span><div class="bar-track"><div id="health-fill"></div></div><span id="health-text">100</span></div>
+  </div>
+  <div id="stamina-bar" class="panel">
+    <div class="row"><span id="stamina-label">STAMINA</span><div class="bar-track"><div id="stamina-fill"></div></div></div>
+  </div>
+  <div id="money" class="panel">$1,250</div>
+  <div id="wanted" class="panel"></div>
+  <div id="top-right" class="panel">
+    <span id="clock">10:00</span>
+    <span id="weather">Clear</span>
+    <span id="station">RADIO OFF</span>
+    <span id="turf">Turf 0/3</span>
+    <span id="packages">Packages 0/15</span>
+    <span id="mute-tag">SOUND ON</span>
+    <span id="title-tag">SOLMAR CITY</span>
+  </div>
+  <div id="objective" class="panel">Meet Dex at the marina.</div>
+  <div id="speed" class="panel">0 mph</div>
+  <div id="ammo" class="panel"></div>
+  <div id="hint" class="panel">WASD to move. Follow the gold marker.</div>
+  <div id="side-line" class="panel"></div>
+  <canvas id="minimap" width="190" height="190"></canvas>
+  <div id="toast" class="hidden"></div>
+  <div id="mission-list" class="panel hidden"></div>
+</div>
+
+<div id="start-screen" class="screen">
+  <div class="card">
+    <p class="eyebrow">AN ORIGINAL OPEN-WORLD CRIME GAME</p>
+    <h1>SOLMAR <span class="gold">CITY</span></h1>
+    <p class="tagline">Mara Voss came home to Solmar to run parcels. The city had other plans — twelve jobs, three gangs, and a police force that never forgets a face.</p>
+    <ul class="controls">
+      <li><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> — move on foot / drive</li>
+      <li>Mouse — orbit the camera, wheel zooms</li>
+      <li><kbd>Shift</kbd> run &nbsp;·&nbsp; <kbd>Space</kbd> jump</li>
+      <li><kbd>E</kbd> enter / exit car &nbsp;·&nbsp; <kbd>F</kbd> punch, click to shoot</li>
+      <li><kbd>M</kbd> mission list &nbsp;·&nbsp; <kbd>P</kbd> pause &nbsp;·&nbsp; <kbd>R</kbd> restart mission</li>
+    </ul>
+    <div class="row">
+      <button id="start-button" class="btn" type="button">Start game</button>
+      <button id="continue-button" class="btn ghost" type="button">Continue</button>
+    </div>
+    <p id="save-note" class="note">No save found yet — your first run starts fresh.</p>
+  </div>
+</div>
+
+<div id="pause-screen" class="screen hidden">
+  <div class="card">
+    <p class="eyebrow">TAKE A BREATHER</p>
+    <h1>PAUSED</h1>
+    <p class="tagline">Solmar waits for no one — except right now. Your progress is saved automatically as you play.</p>
+    <div class="row">
+      <button id="resume-button" class="btn" type="button">Resume</button>
+      <button id="restart-button" class="btn ghost" type="button">Restart mission</button>
+    </div>
+  </div>
+</div>
+
+<div id="wasted-screen" class="screen hidden">
+  <div class="card">
+    <h1>WASTED</h1>
+    <p>Mara is down. The hospital patches her up and sends the bill —<br>then it is back to the streets of Solmar.</p>
+    <p class="note">Press any key when the countdown ends to wake up at the hospital.</p>
+  </div>
+</div>
+
+<div id="story-overlay" class="screen hidden">
+  <div id="story-box" class="card">
+    <p id="story-who">MARA</p>
+    <p id="story-text"></p>
+    <p id="story-hint">Press any key to continue…</p>
+  </div>
+</div>
+
+<div id="garage-overlay" class="screen hidden">
+  <div class="card">
+    <p class="eyebrow">SOLMAR CUSTOMS</p>
+    <h1>GARAGE</h1>
+    <div id="garage-list"></div>
+    <p id="garage-money">$1,250</p>
+    <div class="row">
+      <button id="garage-close" class="btn" type="button">Close garage</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

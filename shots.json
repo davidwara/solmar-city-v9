@@ -1,0 +1,30 @@
+[
+  {
+    "file": "1-cover.jpg",
+    "shot": "drive",
+    "seed": 1,
+    "query": "?shot=drive&seed=1",
+    "description": "Mara driving downtown at 10:00, towers ahead, traffic on the avenue, pedestrians on the sidewalk, HUD, minimap and job tracker live."
+  },
+  {
+    "file": "2-chase.jpg",
+    "shot": "chase",
+    "seed": 1,
+    "query": "?shot=chase&seed=1",
+    "description": "Three-star police ram run in golden late-afternoon light during the Hot Delivery job, traffic ahead, RAM RUN warning on the HUD."
+  },
+  {
+    "file": "3-mission.jpg",
+    "shot": "fish",
+    "seed": 7,
+    "query": "?shot=fish&seed=7",
+    "description": "Fishing off the east pier at golden hour 17:30, bobber on the bay, Biscuit at her heel, the second island and its lighthouse across the water."
+  },
+  {
+    "file": "4-night.jpg",
+    "shot": "night",
+    "seed": 1,
+    "query": "?shot=night&seed=1",
+    "description": "Storm night at 22:00 on the beachfront, lamps glowing, moon up, lightning, rain, Mara's car at the intersection, downtown towers and traffic with headlights."
+  }
+]

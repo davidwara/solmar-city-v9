@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+# Build and submission output
+out/
+output/
+/output
+# Logs
+*.log
+npm-debug.log*
+# OS artefacts
+.DS_Store
+Thumbs.db
+# Editor and local tooling
+.vscode/
+.idea/
+*.swp
+*.tmp
+.cache/
+# Local browser profiles used while play-testing
+chrome-profile/
+.chrome-profile/
+playwright-profile/
+# Playwright and test artefacts
+test-results/
+playwright-report/
+coverage/
+# Environment and secrets (never commit these)
+.env
