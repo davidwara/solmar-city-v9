@@ -156,7 +156,7 @@ function stageFish(ctx) {
   callIf(ctx.fishing, 'cast');
   // Biscuit the stray dog at Mara's heel.
   if (ctx.pets) {
-    if (typeof ctx.pets.adopted !== 'undefined') ctx.pets.adopted = true;
+    ctx.pets.markAdopted();
     const dog = ctx.pets.dog || ctx.pets.biscuit || null;
     if (dog) placeAt(dog, px + 1.6, 0, pz - 1.2);
   }
