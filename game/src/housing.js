@@ -259,6 +259,15 @@ export function createHousing(scene) {
     }
   }
 
+  // Alias matching the main.js side-hustle save contract.
+  function getSaveData() {
+    return save();
+  }
+
+  function loadSaveData(data) {
+    load(data);
+  }
+
   return {
     houses,
     markers,
@@ -270,6 +279,8 @@ export function createHousing(scene) {
     statusText,
     save,
     load,
+    getSaveData,
+    loadSaveData,
     get inside() {
       return inside;
     },

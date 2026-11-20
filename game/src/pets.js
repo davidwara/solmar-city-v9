@@ -261,6 +261,15 @@ export function createPets(scene, audio, collectibles, gangs) {
     if (typeof data.happiness === 'number') happiness = data.happiness;
   }
 
+  // Alias matching the main.js side-hustle save contract.
+  function getSaveData() {
+    return save();
+  }
+
+  function loadSaveData(data) {
+    load(data);
+  }
+
   return {
     group: dog.group,
     markers: [marker],
@@ -271,6 +280,8 @@ export function createPets(scene, audio, collectibles, gangs) {
     statusText,
     save,
     load,
+    getSaveData,
+    loadSaveData,
     get adopted() {
       return adopted;
     },
