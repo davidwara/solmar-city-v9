@@ -133,6 +133,11 @@ export function createCollectibles(scene, seed) {
     return null;
   }
 
+  // Alias: main.js calls collectibles.pickupCheck(position).
+  function pickupCheck(pos) {
+    return pickup(pos);
+  }
+
   function packagesText() {
     return 'Packages ' + collectedCount() + '/' + PACKAGE_COUNT;
   }
@@ -177,6 +182,7 @@ export function createCollectibles(scene, seed) {
     update,
     setNight,
     pickup,
+    pickupCheck,
     packagesText,
     allCollected,
     nearbyDots,
