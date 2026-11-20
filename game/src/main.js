@@ -327,11 +327,10 @@ function startGame(useSave) {
         engineLevel: savedGame.engineLevel ?? 0,
         armor: !!savedGame.armor,
       });
-    } else {
-      customization.paintIndex = savedGame.paintIndex ?? 0;
-      customization.engineLevel = savedGame.engineLevel ?? 0;
-      customization.armor = !!savedGame.armor;
     }
+    // No direct fallback here: paintIndex is getter-only on the
+    // customization object, so assigning it directly throws on Continue.
+    // loadSaveData above is the only path that restores the paint.
     state.maxHealth = 100 + (customization.armor ? ARMOR_BONUS : 0);
     state.health = clamp(savedGame.health ?? 100, 1, state.maxHealth);
 
