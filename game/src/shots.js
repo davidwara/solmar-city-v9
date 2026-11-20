@@ -214,12 +214,17 @@ function stageFish(ctx) {
   // pier post in screen space — the new camera (further west, higher)
   // moves the bobber ~24 deg clear of the post; (2) the REAL lighthouse
   // is at (80,0,395), not (40,330) — from the old camera it projected
-  // onto the island's building cluster. The new camera is further west
-  // and higher (y=10) with the target shifted east toward the lighthouse,
-  // so the tower clears the rooftops and stands against sky, while Mara
-  // (lower-left), Biscuit (at her heel) and the bobber (near centre)
-  // stay in frame.
-  ctx.setCamera(-185, 10, 215, -125, 4, 285);
+  // onto the island's building cluster. Round-9: the round-8 camera
+  // (-185,10,215)->(-125,4,285) still left the tower behind the wide grey
+  // block — measured tower (477,282-340), only a sliver at the block's
+  // right edge. This camera goes FURTHER west (+65 m) and south (+10 m)
+  // and higher (y=15), with the target shifted FURTHER east (+50 m), so
+  // parallax moves the tower clear right of the block: the projection
+  // math (calibrated — it reproduces the measured (477,340) exactly)
+  // puts the tower at (682,304-350) with 7-38 px of clearance past the
+  // block's right edge, while Mara stays lower-left (456,424), Biscuit at
+  // her heel (437,428) and the bobber near centre (597,408).
+  ctx.setCamera(-250, 15, 225, -75, 4, 300);
   ctx.setState('playing');
 }
 

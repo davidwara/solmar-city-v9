@@ -1463,6 +1463,30 @@ function tickPlaying(dt) {
   }
 }
 
+// Chase screenshot pose: force the RAM RUN toast visible by DIRECT DOM
+// state. hud.toast() alone did not survive to capture — round-9 evidence
+// (two Chrome runs): textContent was "3-STAR RAM RUN!" but computed
+// display:none, opacity 1, rect 0x0 at __shotReady and 0.5 s later, so
+// something in the per-frame HUD update hides the toast again after
+// hud.toast() shows it. This helper re-asserts the #toast element itself
+// (text + display:block + visibility + opacity) every time it runs, and
+// looks the element up fresh on each call in case the HUD rebuilds it.
+// Called AFTER hud.update() in loop() on every chase frame from frame 30
+// on (including frames past __shotReady, until the harness captures), and
+// again at the exact __shotReady moment — so no per-frame update in the
+// same tick can hide it before the render.
+function forceRamToast() {
+  hud.toast('3-STAR RAM RUN!', 10000);
+  const el = document.getElementById('toast');
+  if (el) {
+    el.textContent = '3-STAR RAM RUN!';
+    el.classList.remove('hidden');
+    el.style.display = 'block';
+    el.style.visibility = 'visible';
+    el.style.opacity = '1';
+  }
+}
+
 let lastNow = performance.now();
 
 function loop(now) {
@@ -1483,16 +1507,24 @@ function loop(now) {
   const hint = computeHint();
   const sideLines = computeSideLines();
   hud.update(buildHudFields(hint, sideLines));
+  // Chase shot: re-assert the RAM RUN toast AFTER the HUD update on
+  // every frame from frame 30 on, so the per-frame update cannot hide it
+  // again before this frame renders (see forceRamToast). Runs past frame
+  // 40 too — the harness captures ~0.5 s after __shotReady, i.e. after
+  // more frames have run.
+  if (isShot && shotName === 'chase' && frame >= 30) forceRamToast();
   renderer.render(scene, camera);
 
   frame += 1;
   if (isShot && frame === 40) {
     window.__shotReady = true;
-    // Chase pose: re-fire the RAM RUN warning with a 10 s duration at
-    // the exact moment the shot becomes ready, so it is guaranteed on
-    // screen at capture (~0.5-1 s later). The frame-39 re-fire in
-    // tickPlaying is kept as backup.
-    if (shotName === 'chase') hud.toast('3-STAR RAM RUN!', 10000);
+    // Chase pose: re-fire the RAM RUN warning with a 10 s duration AND
+    // re-assert the #toast element directly at the exact moment the shot
+    // becomes ready, so it is guaranteed on screen at capture (~0.5-1 s
+    // later). The frame-39 re-fire in tickPlaying is kept as backup, and
+    // the per-frame forceRamToast() above keeps it visible on the frames
+    // that run between __shotReady and the capture.
+    if (shotName === 'chase') forceRamToast();
   }
 }
 
