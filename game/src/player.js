@@ -7,6 +7,11 @@ const RUN_SPEED = 10.5;
 const JUMP_SPEED = 8.5;
 const GRAVITY = 24;
 
+// The player this module created via createPlayer. The §4 contract calls
+// the exported updatePlayer dt-first — updatePlayer(dt, input, yaw,
+// colliders, bound) — so that path routes to this instance.
+let currentPlayer = null;
+
 // Push a ground-plane position out of every collider box it overlaps.
 // pos is a Vector3-like {x, z}; radius is Mara's (or a car's) half-width.
 // Each box is {minX, maxX, minZ, maxZ}. The push goes along the axis
@@ -114,6 +119,9 @@ export function createPlayer(scene) {
   // Bound method form, so main.js can call player.update(dt, ...) too.
   player.update = (dt, input, camYaw, colliders, bound) =>
     updatePlayer(player, dt, input, camYaw, colliders, bound);
+  // Remember the created player so the dt-first contract call
+  // updatePlayer(dt, input, yaw, colliders, bound) routes to it.
+  currentPlayer = player;
   return player;
 }
 
@@ -135,7 +143,19 @@ function readInput(input) {
 // camera's orbit yaw; WASD moves relative to it. Shift runs, Space
 // jumps. Collisions resolve against the collider boxes and the bound
 // keeps Mara inside the playable area.
+//
+// Two call forms: the §4 contract form updatePlayer(dt, input, yaw,
+// colliders, bound) — dt first, routed to the player created by
+// createPlayer — and the player-first form updatePlayer(player, dt,
+// input, yaw, colliders, bound). A numeric first argument selects the
+// dt-first form.
 export function updatePlayer(player, dt, input, camYaw, colliders, bound) {
+  if (typeof player === 'number') {
+    // dt-first: (dt, input, yaw, colliders, bound) — the remaining
+    // arguments shift one slot over from the player-first form.
+    if (!currentPlayer) return null;
+    return updatePlayer(currentPlayer, player, dt, input, camYaw, colliders);
+  }
   if (!player) return null;
   const keys = readInput(input);
   const yaw = camYaw || 0;
