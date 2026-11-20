@@ -8,6 +8,9 @@
 // Jobs (0-based) that open with a cutscene: missions 1, 4, 7 and 10.
 export const CUTSCENE_JOBS = [0, 3, 6, 9];
 
+// Alias for main.js: the story-jobs list.
+export const STORY_JOBS = CUTSCENE_JOBS;
+
 // Dialogue scripts, written for this build. Each line carries its
 // speaker so the overlay can show who is talking.
 const SCRIPTS = {

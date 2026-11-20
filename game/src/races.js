@@ -51,6 +51,9 @@ export const ROUTES = [
   },
 ];
 
+// Alias for main.js: the race-routes list.
+export const RACE_ROUTES = ROUTES;
+
 // Chequered start flag by the garage lot.
 export const RACE_FLAG_POS = new THREE.Vector3(124, 0, 124);
 
