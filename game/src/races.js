@@ -318,6 +318,15 @@ export function createRaces(scene) {
       r.countingDown = false;
       r.hideGates();
     },
+
+    // Aliases expected by main.js save/restore: getSaveData()/loadSaveData().
+    getSaveData() {
+      return r.saveData();
+    },
+
+    loadSaveData(data) {
+      r.loadData(data);
+    },
   };
 
   return r;

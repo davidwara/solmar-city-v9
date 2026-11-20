@@ -218,6 +218,15 @@ export function createDelivery(scene) {
       d.parcel = null;
       dropBeacon.visible = false;
     },
+
+    // Aliases expected by main.js save/restore: getSaveData()/loadSaveData().
+    getSaveData() {
+      return d.saveData();
+    },
+
+    loadSaveData(data) {
+      d.loadData(data);
+    },
   };
 
   return d;
