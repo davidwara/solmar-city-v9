@@ -370,5 +370,57 @@ export function spawnPedestrians(scene, seed, count = 26) {
     return ped;
   }
 
-  return { peds, update, nearest, knockDown, place, bark };
+  // Crowd density: spawn extra residents on the sidewalks around a
+  // centre point, so a posed downtown scene can pack the pavements.
+  function spawnExtra(count, cx, cz) {
+    const made = [];
+    for (let k = 0; k < (count || 0); k++) {
+      const figure = buildFigure(
+        pick(rng, SHIRT_COLOURS),
+        pick(rng, PANTS_COLOURS),
+        pick(rng, SKIN_TONES),
+      );
+      const scale = rand(rng, 0.92, 1.08);
+      figure.group.scale.setScalar(scale);
+      const street = (cx || 0) + pick(rng, [-10.5, 10.5]);
+      const ped = {
+        group: figure.group,
+        parts: figure.parts,
+        pos: new THREE.Vector3(street, 0, (cz || 0) + rand(rng, -55, 55)),
+        target: new THREE.Vector3(0, 0, 0),
+        heading: rand(rng, 0, Math.PI * 2),
+        walkSpeed: rand(rng, 1.1, 2.1),
+        walkPhase: rand(rng, 0, 6),
+        fleeTimer: 0,
+        downTimer: 0,
+        down: false,
+        barkTimer: rand(rng, 6, 20),
+        barkSprite: null,
+        barkLife: 0,
+        tourist: false,
+        photoTimer: rand(rng, 4, 12),
+        photoPause: 0,
+        waveTimer: 0,
+      };
+      const next = pointOf(randomSidewalkPoint(rng));
+      ped.target.set(next.x, 0, next.z);
+      ped.group.position.copy(ped.pos);
+      ped.group.rotation.y = ped.heading;
+      scene.add(ped.group);
+      peds.push(ped);
+      made.push(ped);
+    }
+    return made;
+  }
+
+  // Stage a whole burst of pedestrians at once: [index, x, z].
+  // Spawns extra residents first when the burst names more than the
+  // crowd has.
+  function burst(spots) {
+    const list = spots || [];
+    if (list.length > peds.length) spawnExtra(list.length - peds.length, list[0][1], list[0][2]);
+    for (const [index, x, z] of list) place(index, x, z);
+  }
+
+  return { peds, update, nearest, knockDown, place, burst, spawnExtra, bark };
 }

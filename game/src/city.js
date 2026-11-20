@@ -274,6 +274,33 @@ function layCasino(scene, colliders) {
   );
   trim.position.set(CASINO_POS.x, 11.4, CASINO_POS.z);
   scene.add(trim);
+  // A lit CASINO sign on the two street-facing sides, so the building
+  // reads as a casino from the plaza instead of a dark box.
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const g = canvas.getContext('2d');
+  g.fillStyle = '#2a1a3a';
+  g.fillRect(0, 0, 512, 128);
+  g.strokeStyle = '#ffd23f';
+  g.lineWidth = 6;
+  g.strokeRect(6, 6, 500, 116);
+  g.fillStyle = '#ffd23f';
+  g.font = 'bold 64px Verdana';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('★ CASINO ★', 256, 66);
+  const signTex = new THREE.CanvasTexture(canvas);
+  const signMat = new THREE.MeshBasicMaterial({ map: signTex });
+  const signGeo = new THREE.PlaneGeometry(12, 3);
+  const signWest = new THREE.Mesh(signGeo, signMat);
+  signWest.position.set(CASINO_POS.x - 11.1, 8, CASINO_POS.z);
+  signWest.rotation.y = -Math.PI / 2;
+  scene.add(signWest);
+  const signNorth = new THREE.Mesh(signGeo, signMat);
+  signNorth.position.set(CASINO_POS.x, 8, CASINO_POS.z - 11.1);
+  signNorth.rotation.y = Math.PI;
+  scene.add(signNorth);
   colliders.push({
     minX: CASINO_POS.x - 11, maxX: CASINO_POS.x + 11,
     minZ: CASINO_POS.z - 11, maxZ: CASINO_POS.z + 11,

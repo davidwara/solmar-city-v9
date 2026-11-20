@@ -18,6 +18,7 @@ import { spawnParkedCars, updateCar, nearestCar } from './vehicles.js';
 import { spawnTraffic, trafficCrash } from './traffic.js';
 import { spawnPedestrians } from './pedestrians.js';
 import { createPolice } from './police.js';
+import { createHelicopter } from './helicopter.js';
 import { createMissions } from './missions.js';
 import { createCombat } from './combat.js';
 import { createAudio } from './audio.js';
@@ -77,6 +78,7 @@ const cars = spawnParkedCars(scene, seed);
 const traffic = spawnTraffic(scene, seed, 10);
 const pedestrians = spawnPedestrians(scene, seed, 26);
 const police = createPolice(scene, seed);
+const heli = createHelicopter(scene, seed);
 const missions = createMissions(scene);
 const combat = createCombat();
 const audio = createAudio();
@@ -658,7 +660,7 @@ function computeSideLines() {
       }
     }
   }
-  if (police.ramming) lines.push('3-STAR RAM RUN!');
+  if (police.ramming) lines.push(`${police.wanted}-STAR RAM RUN!`);
   return lines;
 }
 
@@ -1145,7 +1147,7 @@ function setState(mode) {
 if (isShot) {
   showScreen(null);
   stageShot({
-    scene, city, player, cars, traffic, peds: pedestrians, police, missions,
+    scene, city, player, cars, traffic, peds: pedestrians, police, heli, missions,
     daynight, weapons, weather, collectibles, boats, island, gangs,
     customization, story, fishing, races, housing, casino, delivery, pets,
     setCamera, setState, enterCar, exitCar, enterBoat, exitBoat,
@@ -1182,7 +1184,7 @@ if (isShot) {
 // Debug handle.
 // ---------------------------------------------------------------------------
 window.__solmar = {
-  state, missions, police, traffic, peds: pedestrians, player, cars, weapons,
+  state, missions, police, heli, traffic, peds: pedestrians, player, cars, weapons,
   daynight, wasted, weather, collectibles, boats, island, gangs,
   customization, story, fishing, races, housing, casino, delivery, pets,
 };
@@ -1194,7 +1196,7 @@ window.__shotError = null;
 // ---------------------------------------------------------------------------
 function tickPlaying(dt) {
   state.playTime += dt;
-  if (shotName === 'drive') input.forward = true;
+  if (shotName === 'drive' || shotName === 'chase' || shotName === 'night') input.forward = true;
 
   if (!isShot) daynight.update(dt);
   weapons.update(dt);
@@ -1300,6 +1302,15 @@ function tickPlaying(dt) {
     }
     if (policeEvents.busted) handleBusted();
   }
+
+  // Air One: the police helicopter flies while the heat is three stars
+  // or more, and holds its staged hover over Mara in the screenshot
+  // poses. It tracks the player's position every frame.
+  heli.update(dt, {
+    playerPos: focusPos(),
+    wanted: state.wanted,
+    isNight: daynight.isNight,
+  });
   // Chase screenshot pose: the RAM RUN warning has to be on screen at
   // capture (frame 40). The side text already carries it whenever
   // police.ramming is set; fire a matching toast once ramming starts
@@ -1314,11 +1325,11 @@ function tickPlaying(dt) {
   // be missed by an exact-equality check.
   if (isShot && shotName === 'chase' && police.ramming && frame >= 30 && !ramToasted) {
     ramToasted = true;
-    hud.toast('3-STAR RAM RUN!', 10000);
+    hud.toast('5-STAR RAM RUN!', 10000);
   }
   if (isShot && shotName === 'chase' && frame >= 39 && !ramToast40) {
     ramToast40 = true;
-    hud.toast('3-STAR RAM RUN!', 10000);
+    hud.toast('5-STAR RAM RUN!', 10000);
   }
   if (state.wanted === 0 && state.health < state.maxHealth) {
     state.health = Math.min(state.maxHealth, state.health + 2 * dt);
@@ -1438,15 +1449,14 @@ function tickPlaying(dt) {
       setTimeout(() => { if (state.mode === 'story') state.mode = 'playing'; }, 3000);
     }
   }
-  // Fish screenshot pose: the pets update repositions Biscuit's rendered
-  // group (pets.group) every frame, so the staging-only placement never
-  // sticks — the group reads back at its spawn, ~125 m from Mara. Re-apply
-  // the staged spot after the update, every frame, so Biscuit is at Mara's
-  // heel in the captured frame. This runs after pets.update and before the
-  // frame renders, so the position it sets is the one on screen at frame 40.
-  if (isShot && shotName === 'fish' && pets.group && pets.group.position
-    && typeof pets.group.position.set === 'function') {
-    pets.group.position.set(-158, 0, 232);
+  // Mission screenshot pose: Mara fires her pistol from frame 30 on,
+  // so the muzzle flash and tracer are live at the capture — a single
+  // staged shot would die 0.06 s after firing. fireShot() fires real
+  // shots (cooldown-gated, ammo counted); stageFlash() re-lights the
+  // flash from the last real shot so it survives to the rendered frame.
+  if (isShot && shotName === 'mission' && frame >= 30) {
+    fireShot();
+    if (typeof weapons.stageFlash === 'function') weapons.stageFlash();
   }
 
   // Audio and autosave.
@@ -1466,7 +1476,7 @@ function tickPlaying(dt) {
 
 // Chase screenshot pose: force the RAM RUN toast visible by DIRECT DOM
 // state. hud.toast() alone did not survive to capture — round-9 evidence
-// (two Chrome runs): textContent was "3-STAR RAM RUN!" but computed
+// (two Chrome runs): textContent was "5-STAR RAM RUN!" but computed
 // display:none, opacity 1, rect 0x0 at __shotReady and 0.5 s later, so
 // something in the per-frame HUD update hides the toast again after
 // hud.toast() shows it. This helper re-asserts the #toast element itself
@@ -1477,10 +1487,10 @@ function tickPlaying(dt) {
 // again at the exact __shotReady moment — so no per-frame update in the
 // same tick can hide it before the render.
 function forceRamToast() {
-  hud.toast('3-STAR RAM RUN!', 10000);
+  hud.toast('5-STAR RAM RUN!', 10000);
   const el = document.getElementById('toast');
   if (el) {
-    el.textContent = '3-STAR RAM RUN!';
+    el.textContent = '5-STAR RAM RUN!';
     el.classList.remove('hidden');
     el.style.display = 'block';
     el.style.visibility = 'visible';

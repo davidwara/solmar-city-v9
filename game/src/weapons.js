@@ -140,6 +140,7 @@ export function createWeapons(scene) {
     shoot,
     reload,
     stageOwned,
+    stageFlash,
     update,
   };
 
@@ -297,6 +298,23 @@ export function createWeapons(scene) {
     weapons.owned = true;
     weapons.mag = mag;
     weapons.reserve = reserve;
+  }
+
+  // Staging helper for the shootout screenshot: re-light the muzzle
+  // flash and tracer from the last real shot, so the flash is still on
+  // screen at the capture frame instead of dying 0.06 s after the shot.
+  // No-ops until at least one real shot has been fired.
+  function stageFlash() {
+    if (!weapons.lastShotPos) return;
+    flash.position.copy(weapons.lastShotPos);
+    // A little larger than stock: at screenshot distance the 1.1 m
+    // flash is a sliver, but 2x reads as a yellow box over Mara.
+    flash.scale.setScalar(1.3);
+    flash.visible = true;
+    flashMat.opacity = 1;
+    weapons.flashTimer = 0.12;
+    tracerMat.opacity = 0.9;
+    weapons.tracerTimer = 0.12;
   }
 
   function update(dt) {

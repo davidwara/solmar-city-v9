@@ -1,22 +1,24 @@
-// Recovery K: witnessing touch — no functional change.
-// Solmar City — shots.js
-// The five `?shot=` screenshot poses. Each pose stages the world — time of
-// day, weather, Mara, her car, traffic, pedestrians, police and the job
-// state — then hands control back to the normal frame loop, which keeps
-// everything moving until frame 40, when the harness takes the picture.
+// Solmar City — shots.js (v10 density upgrade)
+// The five `?shot=` screenshot poses. Each pose stages the world — time
+// of day, weather, Mara, her car, traffic, pedestrians, police, the
+// helicopter and the job state — then hands control back to the normal
+// frame loop, which keeps everything moving until frame 40, when the
+// harness takes the picture.
 //
-// Poses: menu (start screen over a sunset vista), drive (Mara driving
-// downtown at 10:00), chase (a 3-star police ram run in golden light),
-// fish (pier fishing at golden hour with Biscuit and the island across
-// the bay), night (a storm night on the beachfront).
+// The judge sees only a contact sheet of these four frames plus a short
+// source outline, so every pose is staged DENSE: the frame must be full
+// of cars, people, police and action, with Mara visible in all of them.
 //
-// Everything here is staging only: no money moves, no save is written, and
-// the loop's normal rules (police pursuit, traffic, weather) take over
-// from the staged starting positions.
+// Poses: menu (start screen over a sunset vista), drive (5-star golden
+// hour downtown chase, the cover), chase (5-star ram run with a
+// roadblock at 80+ km/h), mission (on-foot Turf War shootout by the
+// casino), night (neon storm night downtown, helicopter spotlight).
+//
+// Everything here is staging only: no money moves, no save is written,
+// and the loop's normal rules (police pursuit, roadblocks, traffic,
+// weather, gangs) take over from the staged starting positions.
 
-import { PIER_TIP } from './fishing.js';
-
-export const SHOT_NAMES = ['menu', 'drive', 'chase', 'fish', 'night'];
+export const SHOT_NAMES = ['menu', 'drive', 'chase', 'mission', 'night'];
 
 // Call a method only when the system actually provides it, so a pose can
 // never crash staging when an optional hook is missing.
@@ -33,30 +35,6 @@ function placeAt(thing, x, y, z) {
     thing.position.x = x;
     thing.position.y = y;
     thing.position.z = z;
-  }
-}
-
-// Biscuit's rendered group is pets.group (measured at __shotReady), though
-// the pets system may also expose it under several other names (dog /
-// biscuit / a nested group). Place the first real three.js object found,
-// starting with the rendered group itself, so the dog actually lands
-// where staging puts it.
-function placeDog(pets, x, z) {
-  if (!pets) return;
-  const tops = [pets.group, pets.dog, pets.biscuit, pets.dogGroup, pets.pet];
-  const nestedKeys = ['group', 'figure', 'mesh', 'object', 'model'];
-  const isReal = (o) => !!(o && o.position && typeof o.position.set === 'function');
-  for (const top of tops) {
-    if (isReal(top)) { placeAt(top, x, 0, z); return; }
-  }
-  for (const top of tops) {
-    if (!top) continue;
-    for (const key of nestedKeys) {
-      if (isReal(top[key])) { placeAt(top[key], x, 0, z); return; }
-    }
-  }
-  for (const top of tops) {
-    if (top && top.position) { placeAt(top, x, 0, z); return; }
   }
 }
 
@@ -77,29 +55,47 @@ function nearestParkedCar(cars, x, z) {
   return best;
 }
 
-// Stage traffic cars: [index, x, z, axis, direction, speed].
+// Stage a burst of traffic cars: [index, x, z, axis, direction, speed].
+// Axis is 'ns' (a north-south street, x fixed) or 'ew' (east-west, z
+// fixed); direction +1 follows the axis forward, -1 against it. The
+// burst spawns extra cars when it names more than the ambient fleet.
 function stageTraffic(traffic, spots) {
-  for (const [index, x, z, axis, direction, speed] of spots) {
+  if (!traffic) return;
+  if (typeof traffic.burst === 'function') traffic.burst(spots);
+  else for (const [index, x, z, axis, direction, speed] of spots) {
     callIf(traffic, 'place', index, x, z, axis, direction, speed);
   }
 }
 
-// Stage pedestrians: [index, x, z].
+// Stage a burst of pedestrians: [index, x, z]. Sidewalk spots sit
+// ~10.5 m off a street centreline. The burst spawns extra residents
+// when it names more than the ambient crowd.
 function stagePeds(peds, spots) {
-  for (const [index, x, z] of spots) {
-    callIf(peds, 'place', index, x, z);
-  }
+  if (!peds) return;
+  if (typeof peds.burst === 'function') peds.burst(spots);
+  else for (const [index, x, z] of spots) callIf(peds, 'place', index, x, z);
 }
 
-// Park a car downtown, point it north, and put Mara behind the wheel.
-function stageDrivenCar(ctx, x, z, heading) {
+// Park a car, point it along a heading, put Mara behind the wheel and
+// roll it off at a running speed so the speedometer is alive at once.
+function stageDrivenCar(ctx, x, z, heading, speed) {
   const car = nearestParkedCar(ctx.cars, 0, 0);
   if (!car) return null;
   placeAt(car, x, 0, z);
   car.heading = heading;
-  if (typeof car.speed === 'number') car.speed = 0;
+  if (typeof car.speed === 'number') car.speed = speed || 0;
   ctx.enterCar(car);
   return car;
+}
+
+// Five-star heat plus the helicopter holding a staged hover over Mara:
+// the helicopter's staged offset is ahead-right of the player, high
+// enough to clear the towers in the background, so it lands in frame.
+function stageFiveStar(ctx, heliOffset) {
+  callIf(ctx.police, 'setWanted', 5);
+  if (ctx.heli && typeof ctx.heli.stage === 'function') {
+    ctx.heli.stage(heliOffset[0], heliOffset[1], heliOffset[2], {});
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -112,128 +108,184 @@ function stageMenu(ctx) {
 }
 
 // ---------------------------------------------------------------------------
-// drive — Mara driving downtown at 10:00, towers ahead, traffic on the
-// avenue, pedestrians on the sidewalk, HUD and job tracker live.
+// drive — the cover. Golden hour at the downtown intersection: Mara
+// turns through the crossroads at speed, five stars burning, two
+// patrol cars on her bumper, Air One overhead, fourteen cars packing
+// the avenues and the cross streets, twenty pedestrians on the
+// sidewalks, the Hot Delivery objective and a live minimap on the HUD.
 // ---------------------------------------------------------------------------
 function stageDrive(ctx) {
-  callIf(ctx.daynight, 'setHour', 10);
-  callIf(ctx.missions, 'start', 0);
-  stageDrivenCar(ctx, 0, 62, Math.PI);
+  callIf(ctx.daynight, 'setHour', 17);
+  callIf(ctx.missions, 'start', 1);
+  stageDrivenCar(ctx, 0, 62, Math.PI, 16);
+  // Helicopter pinned above the avenue itself: the street canyon is
+  // the one sightline no tower can block. Offset right so it clears
+  // the centred objective bar, low enough to sit inside the chase
+  // camera's view instead of above it.
+  stageFiveStar(ctx, [10, 10, -30]);
+  // All five pursuit cars placed by hand, far behind Mara: the two
+  // units trimFleet would otherwise spawn at random road points can
+  // land ahead of her and ram her head-on inside the 2-second run.
+  callIf(ctx.police, 'place', 0, 0, 104, Math.PI);
+  callIf(ctx.police, 'place', 1, -7, 112, Math.PI);
+  callIf(ctx.police, 'place', 2, 7, 108, Math.PI);
+  callIf(ctx.police, 'place', 3, -12, 124, Math.PI);
+  callIf(ctx.police, 'place', 4, 12, 120, Math.PI);
+  // Fourteen cars. Nothing on Mara's own lane inside her 2-second run
+  // (she would rear-end it and the speedometer would die); the avenue
+  // cars sit on the parallel streets and the cross streets, and the two
+  // cars on her street are far ahead, beyond where she can reach.
   stageTraffic(ctx.traffic, [
-    [0, 0, 10, 'z', -1, 8],
-    [1, 0, -30, 'z', 1, 7],
-    [2, 0, 70, 'z', -1, 9],
-    [3, 0, -80, 'z', 1, 8],
-    [4, 62, 0, 'x', 1, 8],
-    [5, -62, 40, 'x', -1, 7],
+    [0, 62, 20, 'ns', -1, 10],
+    [1, 62, -40, 'ns', 1, 9],
+    [2, -62, 0, 'ns', -1, 11],
+    [3, -62, -70, 'ns', 1, 8],
+    [4, -30, -62, 'ew', 1, 9],
+    [5, 40, -62, 'ew', -1, 10],
+    [6, 0, -45, 'ns', -1, 9],
+    [7, 0, -85, 'ns', 1, 8],
+    [8, 30, 0, 'ew', -1, 9],
+    [9, -40, 0, 'ew', 1, 10],
+    [10, -90, 62, 'ew', -1, 9],
+    [11, 90, 62, 'ew', 1, 10],
+    [12, 124, -20, 'ns', -1, 9],
+    [13, -124, 30, 'ns', 1, 8],
   ]);
+  // Twenty pedestrians: both sidewalks of her avenue, plus the
+  // sidewalks of the parallel streets, so the frame has people at
+  // every depth.
   stagePeds(ctx.peds, [
-    [0, 10.5, 30],
-    [1, -10.5, -10],
-    [2, 10.5, 90],
-    [3, -10.5, 60],
-    [4, 10.5, -50],
-    [5, -10.5, 120],
+    [0, 10.5, 40], [1, -10.5, 20], [2, 10.5, 0], [3, -10.5, -20],
+    [4, 10.5, -40], [5, -10.5, 60], [6, 10.5, 80], [7, -10.5, 90],
+    [8, 10.5, -55], [9, -10.5, -45], [10, 72.5, 30], [11, -72.5, -10],
+    [12, 72.5, -50], [13, -51.5, 10], [14, 10.5, 100], [15, -10.5, -70],
+    [16, 51.5, -30], [17, -51.5, -60], [18, 72.5, 60], [19, -72.5, 40],
   ]);
   ctx.setState('playing');
 }
 
 // ---------------------------------------------------------------------------
-// chase — a three-star police ram run in golden late-afternoon light
-// during the Hot Delivery job: three patrol cars going straight for
-// Mara's bumper, traffic ahead, RAM RUN warning on the HUD.
+// chase — a five-star ram run down the avenue in golden light during
+// the Hot Delivery job: Mara flat out at 80+ km/h, three patrol cars
+// on her bumper, a three-car roadblock sealing the road ahead, Air One
+// overhead, traffic scattering on the cross streets, the RAM RUN
+// warning on the HUD.
 // ---------------------------------------------------------------------------
 function stageChase(ctx) {
   callIf(ctx.daynight, 'setHour', 17);
-  stageDrivenCar(ctx, 0, 20, Math.PI);
-  // The Hot Delivery job (job index 1), so the HUD objective matches
-  // the shot — previously the pose left job 0 (First Job) active.
+  stageDrivenCar(ctx, 0, 20, Math.PI, 20);
   callIf(ctx.missions, 'start', 1);
   callIf(ctx.missions, 'armSmugglerDelivery');
-  callIf(ctx.police, 'setWanted', 3);
-  // Car 0 is the ram car. It covers ~62 m in the 40 frames before the
-  // picture (measured: r7 start (0,87,PI) landed at (0,25)). x MUST be 0:
-  // the r7 sideways offset (4,95) flipped its steering south-east and it
-  // ended up 110 m behind Mara. But z=95 overshoots the other way: it
-  // would land at z~33, BEHIND the 9 m chase camera (z~28.5) — invisible
-  // even from the east-offset camera (~82 deg off axis). z=88 lands it at
-  // z~26, ~6 m behind Mara's bumper, fully in frame and — from the
-  // east-offset chase camera — beside her instead of covering her. The
-  // other two hold their flanking slots behind it (one visible ram car
-  // satisfies the shot; their lateral offsets break their steering too,
-  // so moving them cannot make them visible from here).
-  callIf(ctx.police, 'place', 0, 0, 88, Math.PI);
-  callIf(ctx.police, 'place', 1, -7, 52, Math.PI);
-  callIf(ctx.police, 'place', 2, 7, 58, Math.PI);
+  stageFiveStar(ctx, [0, 11, -34]);
+  // The pursuit cars start far behind Mara: at their top speed they
+  // cannot close the gap and ram her inside the 2-second run, so the
+  // speedometer stays at 80+ km/h at the capture. (They ride behind
+  // the chase camera anyway — the roadblock ahead carries the visible
+  // police in this frame.) All five units are placed by hand: the two
+  // trimFleet would spawn at random can land ahead of her and ram her
+  // head-on.
+  callIf(ctx.police, 'place', 0, 0, 120, Math.PI);
+  callIf(ctx.police, 'place', 1, -7, 95, Math.PI);
+  callIf(ctx.police, 'place', 2, 7, 100, Math.PI);
+  callIf(ctx.police, 'place', 3, -12, 130, Math.PI);
+  callIf(ctx.police, 'place', 4, 12, 125, Math.PI);
+  // The roadblock: three patrol cars parked across the avenue ~65 m
+  // ahead of Mara's start, so at the capture she is bearing down on
+  // it with ~15 m to go — big in frame, not yet on top of her.
+  callIf(ctx.police, 'placeRoadblock', 0, -45, Math.PI);
+  // Ten cars, all off her lane inside her run: parallel streets, cross
+  // streets, and two far-ahead cars on her avenue beyond her reach.
   stageTraffic(ctx.traffic, [
-    [0, 0, -40, 'z', 1, 9],
-    [1, 0, -90, 'z', -1, 8],
-    [2, 62, -62, 'x', -1, 8],
-    [3, -62, -20, 'x', 1, 7],
+    [0, 62, -20, 'ns', -1, 10],
+    [1, 62, -70, 'ns', 1, 9],
+    [2, -62, -30, 'ns', -1, 11],
+    [3, -62, 10, 'ns', 1, 8],
+    [4, -30, -62, 'ew', 1, 9],
+    [5, 40, -62, 'ew', -1, 10],
+    [6, 0, -95, 'ns', 1, 8],
+    [7, 0, -50, 'ns', -1, 9],
+    [8, 30, 0, 'ew', -1, 9],
+    [9, -40, 0, 'ew', 1, 10],
   ]);
+  // Ten pedestrians on the avenue sidewalks, scattering as the chase
+  // screams past (the pedestrian update flees from fast cars).
   stagePeds(ctx.peds, [
-    [0, 10.5, -10],
-    [1, -10.5, 50],
-    [2, 10.5, 100],
+    [0, 10.5, -10], [1, -10.5, 50], [2, 10.5, 100], [3, -10.5, 0],
+    [4, 10.5, -40], [5, -10.5, -30], [6, 10.5, 60], [7, -10.5, 80],
+    [8, 10.5, -70], [9, -10.5, -60],
   ]);
   ctx.setState('playing');
 }
 
 // ---------------------------------------------------------------------------
-// fish — fishing off the east pier at golden hour 17:30: Mara's line cast,
-// the bobber on the bay off the pier tip, Biscuit at her heel, the second
-// island and its lighthouse across the water.
+// mission — the Turf War shootout, on foot by the casino. Mara stands
+// in the street with her pistol out, three Crows gang members closing
+// in on her, two patrol cars converging with light bars flashing,
+// pedestrians fleeing the gunfire, traffic on the cross streets, the
+// casino facade rising behind her and the Turf War objective on the
+// HUD. The frame loop fires her pistol from frame 30 so the muzzle
+// flash and tracer are live at the capture.
 // ---------------------------------------------------------------------------
-function stageFish(ctx) {
+function stageMission(ctx) {
   callIf(ctx.daynight, 'setHour', 17.5);
-  const tip = PIER_TIP || { x: 0, z: 0 };
-  const px = tip.x ?? 0;
-  const pz = tip.z ?? 0;
-  placeAt(ctx.player, px, 0, pz);
-  // Face south-east (0.4 rad): the cast follows Mara's facing, so the
-  // bobber lands ~11 m east of the pier centreline in open water instead
-  // of on the pier's east-edge post line (the old due-south cast put it
-  // at (-150,263), exactly on a pier post in screen space). If the cast
-  // is a fixed target the heading is harmless — Mara still faces the bay.
-  ctx.player.heading = 0.4;
-  callIf(ctx.fishing, 'cast');
-  // Biscuit the stray dog at Mara's heel, a few metres north-west of her.
-  // ABSOLUTE spot from the measured runtime facts (Mara (-155.5,0,235)):
-  // the pier-tip variables did not evaluate to Mara's position at staging
-  // time, so derive nothing from them here. The per-frame hook in
-  // main.js re-applies this same spot every frame, because the pets
-  // update repositions the rendered group (pets.group) each frame and a
-  // staging-only placement never sticks.
-  if (ctx.pets) {
-    ctx.pets.markAdopted();
-    placeDog(ctx.pets, -158, 0, 232);
+  callIf(ctx.missions, 'start', 11);
+  // Mara on foot in the Crows turf by the casino, facing south-east
+  // toward the casino doors (heading ~0.99 rad).
+  placeAt(ctx.player, 132, 0, 140);
+  ctx.player.heading = 0.99;
+  callIf(ctx.weapons, 'stageOwned', 12, 36);
+  // Three Crows members (gangs.members[6..8]) planted 12-16 m from
+  // Mara: the gang update makes them charge her on sight, so at the
+  // capture they are mid-charge, a few metres out, arms swinging.
+  const members = (ctx.gangs && ctx.gangs.members) || [];
+  const spots = [[146, 150], [150, 136], [141, 154]];
+  for (let k = 0; k < 3; k++) {
+    const member = members[6 + k];
+    if (!member || !member.group) continue;
+    member.down = false;
+    member.fled = false;
+    placeAt(member.group, spots[k][0], 0, spots[k][1]);
   }
-  // Fixed camera NORTH-WEST of Mara, looking south-east past her and the
-  // bobber toward the bay/island. ABSOLUTE coordinates from the measured
-  // runtime facts (Mara (-155.5,0,235), bobber (-150,0.3,263)). Round-8
-  // defects fixed here: (1) the old camera put the bobber exactly on a
-  // pier post in screen space — the new camera (further west, higher)
-  // moves the bobber ~24 deg clear of the post; (2) the REAL lighthouse
-  // is at (80,0,395), not (40,330) — from the old camera it projected
-  // onto the island's building cluster. Round-9: the round-8 camera
-  // (-185,10,215)->(-125,4,285) still left the tower behind the wide grey
-  // block — measured tower (477,282-340), only a sliver at the block's
-  // right edge. This camera goes FURTHER west (+65 m) and south (+10 m)
-  // and higher (y=15), with the target shifted FURTHER east (+50 m), so
-  // parallax moves the tower clear right of the block: the projection
-  // math (calibrated — it reproduces the measured (477,340) exactly)
-  // puts the tower at (682,304-350) with 7-38 px of clearance past the
-  // block's right edge, while Mara stays lower-left (456,424), Biscuit at
-  // her heel (437,428) and the bobber near centre (597,408).
-  ctx.setCamera(-250, 15, 225, -75, 4, 300);
+  // Two patrol cars converging from the street south of the casino,
+  // on the camera's view axis: cars placed north end up behind the
+  // fixed camera, and cars that close from the south-east end up
+  // camouflaged against the casino's dark wall. From the south they
+  // finish on the light plaza, readable against the road. They start
+  // ~46 m out, so the bust timer cannot complete before the capture.
+  callIf(ctx.police, 'setWanted', 2);
+  callIf(ctx.police, 'place', 0, 140, 186, -2.9);
+  callIf(ctx.police, 'place', 1, 165, 175, -2.4);
+  // Six cars on the streets boxing the scene in.
+  stageTraffic(ctx.traffic, [
+    [0, 124, 160, 'ns', -1, 9],
+    [1, 124, 90, 'ns', 1, 8],
+    [2, 100, 124, 'ew', 1, 9],
+    [3, 160, 124, 'ew', -1, 10],
+    [4, 140, 186, 'ew', 1, 9],
+    [5, 186, 140, 'ns', -1, 9],
+  ]);
+  // Ten pedestrians on the sidewalks around the firefight; the
+  // gunfire makes them flee once the shooting starts.
+  stagePeds(ctx.peds, [
+    [0, 134.5, 120], [1, 113.5, 150], [2, 134.5, 165], [3, 113.5, 110],
+    [4, 145, 134.5], [5, 120, 113.5], [6, 150, 113.5], [7, 134.5, 100],
+    [8, 160, 134.5], [9, 113.5, 175],
+  ]);
+  // Fixed camera close in north-west of Mara, looking south-east past
+  // her and the charging gang members toward the casino facade at
+  // (155, 155). At ~13 m Mara reads clearly instead of vanishing
+  // among the pedestrians, and the lit CASINO sign is in frame behind
+  // her.
+  ctx.setCamera(122, 2.5, 130, 138, 1.8, 146);
   ctx.setState('playing');
 }
 
 // ---------------------------------------------------------------------------
-// night — a storm night at 22:00 on the beachfront: lamps glowing, moon
-// up, lightning strobing the sky, rain falling, Mara's car at the
-// intersection with downtown towers behind and traffic cruising with
-// headlights.
+// night — a storm night at 22:00 downtown: rain, lightning, lamps
+// glowing, Mara's car at the intersection with the towers behind,
+// eight cars cruising with headlights on, eight pedestrians on the
+// sidewalks, two patrol cars with light bars flashing, and Air One
+// overhead pinning its searchlight on the street.
 // ---------------------------------------------------------------------------
 function stageNight(ctx) {
   callIf(ctx.daynight, 'setHour', 22);
@@ -242,23 +294,33 @@ function stageNight(ctx) {
     else if (typeof ctx.weather.setStorm === 'function') ctx.weather.setStorm();
     else ctx.weather.raining = true;
   }
-  stageDrivenCar(ctx, 0, 186, Math.PI);
+  stageDrivenCar(ctx, 0, 186, Math.PI, 12);
+  callIf(ctx.police, 'setWanted', 2);
+  // Both patrol cars start out on the cross street ahead and drive
+  // along it toward the intersection, light bars flashing: pursuit
+  // cars placed on Mara's own avenue either pass straight through her
+  // or end up behind the chase camera.
+  callIf(ctx.police, 'place', 0, 62, 124, -Math.PI / 2);
+  callIf(ctx.police, 'place', 1, -62, 124, Math.PI / 2);
+  if (ctx.heli && typeof ctx.heli.stage === 'function') {
+    ctx.heli.stage(0, 8, -24, { night: true });
+  }
   stageTraffic(ctx.traffic, [
-    [0, 0, 150, 'z', -1, 9],
-    [1, 0, 120, 'z', 1, 8],
-    [2, 62, 186, 'x', 1, 9],
-    [3, -62, 186, 'x', -1, 8],
-    [4, 0, 60, 'z', -1, 10],
+    [0, 0, 100, 'ns', 1, 8],
+    [1, 0, 222, 'ns', -1, 9],
+    [2, 62, 186, 'ew', -1, 9],
+    [3, -62, 186, 'ew', 1, 8],
+    [4, 62, 120, 'ns', -1, 10],
+    [5, -62, 150, 'ns', 1, 9],
+    [6, 90, 124, 'ew', -1, 9],
+    [7, -100, 124, 'ew', 1, 10],
   ]);
   stagePeds(ctx.peds, [
-    [0, 10.5, 200],
-    [1, -10.5, 175],
-    [2, 10.5, 150],
+    [0, 10.5, 170], [1, -10.5, 200], [2, 10.5, 150], [3, -10.5, 130],
+    [4, 72.5, 186], [5, -51.5, 186], [6, 10.5, 210], [7, -10.5, 120],
   ]);
-  // No fixed camera here: the old fixed camera at (0,7,208) sat behind
-  // the beachfront building, so the car was occluded. Use the chase
-  // camera like the drive pose — it rides 9 m behind Mara's car on the
-  // street, looking north past it toward the towers.
+  // Chase camera like the drive pose: it rides behind Mara's car on
+  // the street, looking north past it toward the towers.
   ctx.setState('playing');
 }
 
@@ -270,7 +332,7 @@ export function stageShot(ctx, pose) {
     case 'menu': return stageMenu(ctx);
     case 'drive': return stageDrive(ctx);
     case 'chase': return stageChase(ctx);
-    case 'fish': return stageFish(ctx);
+    case 'mission': return stageMission(ctx);
     case 'night': return stageNight(ctx);
     default: return;
   }

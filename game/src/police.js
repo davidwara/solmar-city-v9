@@ -7,7 +7,7 @@ import { CITY, randomRoadPoint } from './city.js';
 import { createRng, rand, clamp, angleDiff } from './utils.js';
 import { resolveCollisions } from './player.js';
 
-const MAX_WANTED = 3;
+const MAX_WANTED = 5;
 const BOUND = (CITY && CITY.bound) || 235;
 const BUST_DIST = 3.2;
 const BUST_TIME = 1.4;
@@ -68,15 +68,21 @@ export function createPolice(scene, seed) {
   const police = {
     wanted: 0,
     cars: [],
+    roadblocks: [],
     unseenTimer: 0,
     decayTimer: 0,
     ramCooldown: 0,
+    roadblockCooldown: 0,
     flash: 0,
     ramming: false,
     addHeat,
     setWanted,
     place,
+    placeRoadblock,
+    deployRoadblock,
+    clearRoadblocks,
     update,
+    get pursuitCars() { return police.cars; },
   };
 
   function buildUnit() {
@@ -165,6 +171,57 @@ export function createPolice(scene, seed) {
     return unit;
   }
 
+  // -------------------------------------------------------------------------
+  // Roadblocks: at three stars and up the law parks patrol cars across
+  // the road ahead of Mara. placeRoadblock stages one by hand (the
+  // screenshot poses use it); deployRoadblock drops one ~70 m ahead of
+  // the player's heading during a live pursuit, at most once every 25 s.
+  // Each block is three patrol cars parked side by side, nose across the
+  // road, light bars flashing. They are parked units, not pursuit cars:
+  // they never chase, and they clear themselves when the heat drops.
+  // -------------------------------------------------------------------------
+  function placeRoadblock(x, z, heading) {
+    const along = heading || 0;
+    // Across the road = perpendicular to the road direction.
+    const px = Math.cos(along);
+    const pz = -Math.sin(along);
+    const acrossHeading = along + Math.PI / 2;
+    const block = { cars: [], x, z };
+    for (const offset of [-4.6, 0, 4.6]) {
+      const unit = buildUnit();
+      const p = unitPos(unit);
+      if (p) { p.x = x + px * offset; p.y = 0; p.z = z + pz * offset; }
+      unit.car.heading = acrossHeading;
+      unit.speed = 0;
+      unit.car.speed = 0;
+      if (unit.car.group) unit.car.group.visible = true;
+      syncUnit(unit);
+      block.cars.push(unit);
+    }
+    police.roadblocks.push(block);
+    return block;
+  }
+
+  function deployRoadblock(playerPos, playerHeading) {
+    if (!playerPos) return null;
+    const ahead = 70;
+    const fx = Math.sin(playerHeading || 0);
+    const fz = Math.cos(playerHeading || 0);
+    const x = clamp(playerPos.x + fx * ahead, -200, 200);
+    const z = clamp(playerPos.z + fz * ahead, -200, 200);
+    police.roadblockCooldown = 25;
+    return placeRoadblock(x, z, playerHeading || 0);
+  }
+
+  function clearRoadblocks() {
+    for (const block of police.roadblocks) {
+      for (const unit of block.cars) {
+        if (unit.car && unit.car.group) unit.car.group.visible = false;
+      }
+    }
+    police.roadblocks.length = 0;
+  }
+
   function flashBar(unit) {
     const bar = unit && unit.lights;
     if (!bar) return;
@@ -199,6 +256,7 @@ export function createPolice(scene, seed) {
         if (unit.car && unit.car.group) unit.car.group.visible = false;
       }
       police.cars.length = 0;
+      clearRoadblocks();
       return events;
     }
 
@@ -207,6 +265,19 @@ export function createPolice(scene, seed) {
       : (player && player.pos);
     if (!targetPos) return events;
     trimFleet(police.wanted, targetPos);
+
+    // Roadblocks: at three stars and up, in a car, the law seals the
+    // road ahead of Mara. One live block at a time, re-deployed at most
+    // every 25 s while the pursuit runs.
+    if (police.roadblockCooldown > 0) police.roadblockCooldown -= dt;
+    if (police.wanted >= 3 && inCar && playerCar
+      && police.roadblocks.length === 0 && police.roadblockCooldown <= 0) {
+      deployRoadblock(targetPos, playerCar.heading || 0);
+    }
+    if (police.wanted < 3) clearRoadblocks();
+    for (const block of police.roadblocks) {
+      for (const unit of block.cars) flashBar(unit);
+    }
 
     const ramRun = police.wanted >= 3 && inCar;
     police.ramming = ramRun;

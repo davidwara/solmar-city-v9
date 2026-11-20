@@ -176,7 +176,59 @@ export function spawnTraffic(scene, seed, count = 10) {
   const lightSpots = [[0, 0], [62, 62], [-62, -62], [0, 124]];
   const lights = lightSpots.map(([x, z]) => makeLight(scene, rng, x, z));
 
-  const traffic = { cars, update, place, lights, horn: false, hornCooldown: 0 };
+  const traffic = { cars, update, place, burst, spawnExtra, lights, horn: false, hornCooldown: 0 };
+
+  // Rush-hour density: spawn extra traffic cars around a centre point
+  // (a posed intersection), so a screenshot or a hot pursuit can pack
+  // the streets instead of running on the ten ambient cars alone.
+  function spawnExtra(count, cx, cz) {
+    const made = [];
+    for (let k = 0; k < (count || 0); k++) {
+      const car = createCar(scene);
+      const axis = rng() < 0.5 ? 'ns' : 'ew';
+      const street = pick(rng, STREETS);
+      const along = (axis === 'ns' ? (cz || 0) : (cx || 0)) + rand(rng, -55, 55);
+      const dir = rng() < 0.5 ? 1 : -1;
+      const wrapper = {
+        car,
+        axis,
+        dir,
+        lane: dir > 0 ? 2.4 : -2.4,
+        cruise: rand(rng, 8, 13),
+        speed: rand(rng, 6, 12),
+        turnCooldown: rand(rng, 2, 8),
+        overtakeTimer: 0,
+        overtaking: false,
+        hornTimer: 0,
+        queueDelay: 0,
+        wasRed: false,
+      };
+      const p = carPos(car);
+      if (p) {
+        p.x = axis === 'ns' ? street : along;
+        p.y = 0;
+        p.z = axis === 'ns' ? along : street;
+      }
+      car.heading = headingFor(axis, dir);
+      car.speed = wrapper.speed;
+      syncMesh(wrapper);
+      cars.push(wrapper);
+      made.push(wrapper);
+    }
+    return made;
+  }
+
+  // Stage a whole burst of cars at once: [index, x, z, axis, dir, speed].
+  // Spawns extra cars first when the burst names more than the fleet has.
+  function burst(spots) {
+    const list = spots || [];
+    if (list.length > cars.length) {
+      const cx = list.length ? list[0][1] : 0;
+      const cz = list.length ? list[0][2] : 0;
+      spawnExtra(list.length - cars.length, cx, cz);
+    }
+    for (const [index, x, z, axis, dir, speed] of list) place(index, x, z, axis, dir, speed);
+  }
 
   function update(dt, ctx) {
     ctx = ctx || {};

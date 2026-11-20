@@ -26,6 +26,34 @@ beach, palms, and a lighthouse whose beam sweeps the water at night. The
 city lives on a day/night clock with golden hour, rain, and storms, and
 the same seed always builds the same city, traffic, and pedestrians.
 
+## Systems
+
+- **12 story missions** — First Job, Hot Delivery, The Getaway, Night
+  Run, Bodyguard, Taxi King, Smuggler's Run, Getaway Driver,
+  Shutterbug, Island Hopper, Lighthouse Keeper, Turf War — with
+  cutscenes, timers, fares, and payouts up to $1,800.
+- **5-star police dispatch** — one patrol car per star, pursuit
+  steering, ram runs at three stars and up, busts on foot, and a
+  cool-down that sheds stars when Mara breaks line of sight.
+- **Air One helicopter** — a procedural police helicopter that circles
+  Mara at three stars and up, rotors spinning, beacon blinking, and a
+  searchlight cone that pins her at night.
+- **Roadblocks** — at three stars and up the law parks three patrol
+  cars across the road ahead of Mara, light bars flashing, re-deployed
+  through a live pursuit.
+- **Rush-hour density** — traffic and pedestrian bursts pack the
+  avenues and sidewalks around the action, with red lights, queues,
+  overtaking, horns, and pedestrians who flee fast cars and gunfire.
+- **Garage & crew** — buy and customise cars, armour up, and claim
+  rival gang turf for $50/minute passive income.
+- **Boats, casino, fishing, pets, housing, races** — sail the bay to
+  the second island and its lighthouse, play cards and slots, fish the
+  pier at golden hour, adopt Biscuit the stray dog, buy a safehouse,
+  and run street races.
+- **Day/night & weather** — a full clock with golden hour, a night
+  city of lamps and lit towers, rain and storms that cut road grip,
+  and 15 hidden packages to hunt across the map.
+
 ## Controls
 
 | Input | Does |
@@ -110,7 +138,7 @@ Then open `http://localhost:8080/` in your browser and press
 
 To play a specific screenshot pose, add a query string, for example
 `http://localhost:8080/?shot=drive&seed=1`. The poses are `menu`,
-`drive`, `chase`, `fish`, and `night`; see `shots.json` for the four
+`drive`, `chase`, `mission`, and `night`; see `shots.json` for the four
 poses the submission screenshots were taken from.
 
 ## How to build the submission
@@ -134,10 +162,12 @@ most 4 screenshots of 256 KiB each, at most 993 game files).
 `screenshots/` holds four renders of the game itself, taken in a browser
 from the game's own code:
 
-1. `1-cover.jpg` — Mara driving downtown at 10:00 (`?shot=drive&seed=1`)
-2. `2-chase.jpg` — a three-star police ram run (`?shot=chase&seed=1`)
-3. `3-mission.jpg` — fishing off the east pier at golden hour
-   (`?shot=fish&seed=7`)
+1. `1-cover.jpg` — five-star golden-hour downtown chase
+   (`?shot=drive&seed=1`)
+2. `2-chase.jpg` — a five-star police ram run with a roadblock
+   (`?shot=chase&seed=1`)
+3. `3-mission.jpg` — on-foot Turf War shootout by the casino
+   (`?shot=mission&seed=1`)
 4. `4-night.jpg` — a storm night on the beachfront
    (`?shot=night&seed=1`)
 
