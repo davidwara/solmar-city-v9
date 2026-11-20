@@ -118,11 +118,13 @@ function stageDrive(ctx) {
   callIf(ctx.daynight, 'setHour', 17);
   callIf(ctx.missions, 'start', 1);
   stageDrivenCar(ctx, 0, 62, Math.PI, 16);
-  // Helicopter pinned above the avenue itself: the street canyon is
-  // the one sightline no tower can block. Offset right so it clears
-  // the centred objective bar, low enough to sit inside the chase
-  // camera's view instead of above it.
-  stageFiveStar(ctx, [10, 10, -30]);
+  // Helicopter pinned dead-centre above the avenue itself, low in the
+  // sky gap between the towers: the street canyon is the one sightline
+  // no tower can block, and dead-centre keeps it clear of the traffic
+  // light gantry on the right and the objective bar across the top.
+  // Low enough (y 6.5) to sit well inside the chase camera's view
+  // instead of hiding behind the HUD, big enough to read at a glance.
+  stageFiveStar(ctx, [0, 6.5, -25]);
   // All five pursuit cars placed by hand, far behind Mara: the two
   // units trimFleet would otherwise spawn at random road points can
   // land ahead of her and ram her head-on inside the 2-second run.
@@ -237,8 +239,10 @@ function stageMission(ctx) {
   // Three Crows members (gangs.members[6..8]) planted 12-16 m from
   // Mara: the gang update makes them charge her on sight, so at the
   // capture they are mid-charge, a few metres out, arms swinging.
+  // The northern one sits a touch south so the tightened camera keeps
+  // it inside the left edge of the frame.
   const members = (ctx.gangs && ctx.gangs.members) || [];
-  const spots = [[146, 150], [150, 136], [141, 154]];
+  const spots = [[146, 150], [147, 142], [141, 154]];
   for (let k = 0; k < 3; k++) {
     const member = members[6 + k];
     if (!member || !member.group) continue;
@@ -246,15 +250,24 @@ function stageMission(ctx) {
     member.fled = false;
     placeAt(member.group, spots[k][0], 0, spots[k][1]);
   }
-  // Two patrol cars converging from the street south of the casino,
-  // on the camera's view axis: cars placed north end up behind the
-  // fixed camera, and cars that close from the south-east end up
-  // camouflaged against the casino's dark wall. From the south they
-  // finish on the light plaza, readable against the road. They start
-  // ~46 m out, so the bust timer cannot complete before the capture.
+  // Two patrol cars converging from the open light plaza SOUTH of
+  // Mara, on approach bearings that keep them off the casino's dark
+  // wall AND off the building blocks: the law drives straight at
+  // Mara, so any approach that crosses a neighbouring block gets
+  // deflected by the building colliders and ends up flung south out
+  // of frame (what the first try did). Both units therefore start on
+  // open ground — one up the street west of the casino block, one up
+  // from the beach road — and close across the pink plaza, ending
+  // south-west and south of Mara with light ground behind them. The
+  // second unit starts further out (~61 m vs ~47 m) so at the
+  // capture it is still ~12 m out while the first is ~5 m out: the
+  // two do not stack on one azimuth behind each other (what the
+  // second try did), they read as two separate black cars with light
+  // bars at clearly different depths. Both start far enough out that
+  // the bust timer cannot complete before the capture.
   callIf(ctx.police, 'setWanted', 2);
-  callIf(ctx.police, 'place', 0, 140, 186, -2.9);
-  callIf(ctx.police, 'place', 1, 165, 175, -2.4);
+  callIf(ctx.police, 'place', 0, 124, 186, 2.92);
+  callIf(ctx.police, 'place', 1, 120, 200, 2.94);
   // Six cars on the streets boxing the scene in.
   stageTraffic(ctx.traffic, [
     [0, 124, 160, 'ns', -1, 9],
@@ -273,10 +286,13 @@ function stageMission(ctx) {
   ]);
   // Fixed camera close in north-west of Mara, looking south-east past
   // her and the charging gang members toward the casino facade at
-  // (155, 155). At ~13 m Mara reads clearly instead of vanishing
-  // among the pedestrians, and the lit CASINO sign is in frame behind
-  // her.
-  ctx.setCamera(122, 2.5, 130, 138, 1.8, 146);
+  // (155, 155). At ~10 m Mara reads clearly instead of vanishing
+  // among the pedestrians, both lit CASINO signs stay in frame, and
+  // the view is rotated a touch south so the patrol cars closing from
+  // the south-west plaza land inside the right of the frame instead
+  // of piling up against the casino's dark wall. Less empty plaza
+  // foreground, less empty sky.
+  ctx.setCamera(126, 2.3, 132, 135, 1.7, 146);
   ctx.setState('playing');
 }
 

@@ -587,10 +587,18 @@ function updateCamera(dt) {
   // beside her instead. The drive pose uses this same chase camera and is
   // good, so the offset must never apply there.
   const chaseShotX = (isShot && shotName === 'chase') ? 6 : 0;
+  // Drive screenshot pose only: pull the chase camera a little closer
+  // and lower (dist 9 -> 7.5, pitch 0.32 -> 0.26) so the empty
+  // foreground asphalt shrinks, Mara's car fills more of the frame and
+  // more sky shows above the road. Every other pose keeps the stock
+  // chase camera.
+  const driveShot = isShot && shotName === 'drive';
+  const effDist = driveShot ? 7.5 : state.cameraDist;
+  const effPitch = driveShot ? 0.26 : state.cameraPitch;
   camTarget.set(
-    focus.x + Math.sin(state.cameraYaw) * Math.cos(state.cameraPitch) * state.cameraDist + chaseShotX,
-    focus.y + eyeHeight + Math.sin(state.cameraPitch) * state.cameraDist,
-    focus.z + Math.cos(state.cameraYaw) * Math.cos(state.cameraPitch) * state.cameraDist,
+    focus.x + Math.sin(state.cameraYaw) * Math.cos(effPitch) * effDist + chaseShotX,
+    focus.y + eyeHeight + Math.sin(effPitch) * effDist,
+    focus.z + Math.cos(state.cameraYaw) * Math.cos(effPitch) * effDist,
   );
   camera.position.lerp(camTarget, 1 - Math.exp(-10 * dt));
   camera.lookAt(focus.x, focus.y + eyeHeight, focus.z);

@@ -116,6 +116,36 @@ export function createWeapons(scene) {
   flash.visible = false;
   scene.add(flash);
 
+  // Muzzle-flash starburst: a camera-facing sprite with a soft radial
+  // gradient (white core, gold halo), so the flash reads as a bright
+  // burst from any angle instead of a thin spinning plane seen edge-on.
+  const flashCanvas = document.createElement('canvas');
+  flashCanvas.width = 128;
+  flashCanvas.height = 128;
+  const fc = flashCanvas.getContext('2d');
+  const grad = fc.createRadialGradient(64, 64, 2, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(255,255,240,1)');
+  grad.addColorStop(0.25, 'rgba(255,210,63,0.95)');
+  grad.addColorStop(0.6, 'rgba(255,120,40,0.4)');
+  grad.addColorStop(1, 'rgba(255,120,40,0)');
+  fc.fillStyle = grad;
+  fc.fillRect(0, 0, 128, 128);
+  const flashSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(flashCanvas), transparent: true, depthWrite: false,
+  }));
+  flashSprite.scale.setScalar(2.4);
+  flashSprite.visible = false;
+  scene.add(flashSprite);
+
+  // Thick tracer beam: a bright cylinder along the shot ray, so the
+  // shot reads as a beam instead of a 1 px line (WebGL line width is
+  // always 1 px, however thick the shot should look). Capped at 14 m:
+  // a miss would otherwise draw a 46 m rod across the whole plaza.
+  const tracerBeamMat = new THREE.MeshBasicMaterial({ color: 0xffe9a8 });
+  const tracerBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1, 8, 1, true), tracerBeamMat);
+  tracerBeam.visible = false;
+  scene.add(tracerBeam);
+
   scene.add(shop);
 
   const weapons = {
@@ -129,6 +159,7 @@ export function createWeapons(scene) {
     tracerTimer: 0,
     spinTimer: 0,
     lastShotPos: null,
+    lastShotEnd: null,
     shotsFired: 0,
     shopPos: SHOP_POS,
     nearShop,
@@ -209,6 +240,16 @@ export function createWeapons(scene) {
     flashMat.opacity = 1;
     weapons.flashTimer = 0.06;
     weapons.lastShotPos = muzzle.clone();
+    weapons.lastShotEnd = new THREE.Vector3(endX, endY, endZ);
+    // Thick beam along the ray, capped at 14 m so a full-range miss
+    // does not draw a rod across the whole plaza.
+    const dir = new THREE.Vector3(endX - muzzle.x, endY - muzzle.y, endZ - muzzle.z);
+    const len = Math.min(dir.length() || 1, 14);
+    dir.normalize();
+    tracerBeam.position.set(muzzle.x + dir.x * len / 2, muzzle.y + dir.y * len / 2, muzzle.z + dir.z * len / 2);
+    tracerBeam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    tracerBeam.scale.set(1, len, 1);
+    tracerBeam.visible = true;
   }
 
   function knockPedDown(ped) {
@@ -306,15 +347,28 @@ export function createWeapons(scene) {
   // No-ops until at least one real shot has been fired.
   function stageFlash() {
     if (!weapons.lastShotPos) return;
-    flash.position.copy(weapons.lastShotPos);
-    // A little larger than stock: at screenshot distance the 1.1 m
-    // flash is a sliver, but 2x reads as a yellow box over Mara.
-    flash.scale.setScalar(1.3);
-    flash.visible = true;
-    flashMat.opacity = 1;
+    // Hide the hard-edged spinning plane for the screenshot pose: at
+    // capture its rotation phase is luck, and it reads as a yellow
+    // diamond/triangle over Mara. The soft camera-facing sprite below
+    // carries the flash instead, deterministically.
+    flash.visible = false;
     weapons.flashTimer = 0.12;
     tracerMat.opacity = 0.9;
     weapons.tracerTimer = 0.12;
+    // Starburst sprite + thick beam, re-lit from the last real shot.
+    flashSprite.position.copy(weapons.lastShotPos);
+    flashSprite.visible = true;
+    if (weapons.lastShotEnd) {
+      const m = weapons.lastShotPos;
+      const e = weapons.lastShotEnd;
+      const dir = new THREE.Vector3(e.x - m.x, e.y - m.y, e.z - m.z);
+      const len = Math.min(dir.length() || 1, 14);
+      dir.normalize();
+      tracerBeam.position.set(m.x + dir.x * len / 2, m.y + dir.y * len / 2, m.z + dir.z * len / 2);
+      tracerBeam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+      tracerBeam.scale.set(1, len, 1);
+      tracerBeam.visible = true;
+    }
   }
 
   function update(dt) {
@@ -334,13 +388,13 @@ export function createWeapons(scene) {
     }
     if (weapons.tracerTimer > 0) {
       weapons.tracerTimer -= dt;
-      if (weapons.tracerTimer <= 0) tracerMat.opacity = 0;
+      if (weapons.tracerTimer <= 0) { tracerMat.opacity = 0; tracerBeam.visible = false; }
     }
     if (weapons.flashTimer > 0) {
       weapons.flashTimer -= dt;
       flashMat.opacity = Math.max(0, weapons.flashTimer / 0.06);
       flash.rotation.z += dt * 20;
-      if (weapons.flashTimer <= 0) flash.visible = false;
+      if (weapons.flashTimer <= 0) { flash.visible = false; flashSprite.visible = false; }
     }
   }
 

@@ -309,8 +309,13 @@ export function createPolice(scene, seed) {
       const dist = Math.hypot(dx, dz);
 
       // Steer toward the target with a capped turn rate.
+      // angleDiff(a, b) is the turn FROM a TO b, so the turn the car
+      // needs is angleDiff(heading, wantHeading): the old order
+      // (wantHeading, heading) turned the car AWAY from Mara, and the
+      // cars ended up driving off to the south-east stuck in a limit
+      // cycle at the +/-PI wrap instead of converging on her.
       const wantHeading = Math.atan2(dx, dz);
-      const turn = clamp(angleDiff(wantHeading, unit.car.heading || 0), -turnRate * dt, turnRate * dt);
+      const turn = clamp(angleDiff(unit.car.heading || 0, wantHeading), -turnRate * dt, turnRate * dt);
       unit.car.heading = (unit.car.heading || 0) + turn;
 
       // Speed profile: flat out from afar, creep when close — unless
