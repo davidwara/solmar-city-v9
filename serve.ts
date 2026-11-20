@@ -3,7 +3,7 @@
 // Serves this repository's root over plain HTTP so the game can be
 // played in a desktop browser with no build step:
 //   node serve.ts
-//   open http://localhost:8080/          (serves game/index.html)
+//   open http://localhost:8080/          (redirects to /game/)
 // Node 24 stdlib only, plain JavaScript syntax inside the .ts file.
 
 import { createReadStream, existsSync, statSync } from 'node:fs';
@@ -57,7 +57,19 @@ function serveFile(file, res) {
 }
 
 const server = createServer((req, res) => {
-  const target = resolveRequest(req.url || '/');
+  // Root URL must redirect into /game/ (not serve game/index.html
+  // directly): the page's relative module paths (src/main.js, …)
+  // resolve against the URL, so serving it at / would 404 them.
+  const rawUrl = req.url || '/';
+  const [pathOnly, query] = rawUrl.split('?');
+  if (pathOnly === '/' || pathOnly === '') {
+    const location = '/game/' + (query !== undefined ? '?' + query : '');
+    res.writeHead(302, { location, 'cache-control': 'no-store' });
+    res.end();
+    console.log(`${req.method} ${req.url} -> 302 ${location}`);
+    return;
+  }
+  const target = resolveRequest(rawUrl);
   let file = target;
   if (file !== null && existsSync(file) && statSync(file).isDirectory()) {
     file = join(file, 'index.html');
