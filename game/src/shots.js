@@ -150,13 +150,18 @@ function stageChase(ctx) {
   callIf(ctx.missions, 'start', 1);
   callIf(ctx.missions, 'armSmugglerDelivery');
   callIf(ctx.police, 'setWanted', 3);
-  // Car 0 is the ram car: it covers ~62 m in the 40 frames before the
-  // picture, so starting it at z=95 puts it ~13 m behind Mara's bumper
-  // at frame 40. The old z=87 left only a 5 m gap, putting the car ~4 m
-  // in front of the chase camera and hiding Mara entirely. The 4 m
-  // sideways offset keeps Mara visible beside it even if the gap ends
-  // up small. The other two hold their flanking slots behind it.
-  callIf(ctx.police, 'place', 0, 4, 95, Math.PI);
+  // Car 0 is the ram car. It covers ~62 m in the 40 frames before the
+  // picture (measured: r7 start (0,87,PI) landed at (0,25)). x MUST be 0:
+  // the r7 sideways offset (4,95) flipped its steering south-east and it
+  // ended up 110 m behind Mara. But z=95 overshoots the other way: it
+  // would land at z~33, BEHIND the 9 m chase camera (z~28.5) — invisible
+  // even from the east-offset camera (~82 deg off axis). z=88 lands it at
+  // z~26, ~6 m behind Mara's bumper, fully in frame and — from the
+  // east-offset chase camera — beside her instead of covering her. The
+  // other two hold their flanking slots behind it (one visible ram car
+  // satisfies the shot; their lateral offsets break their steering too,
+  // so moving them cannot make them visible from here).
+  callIf(ctx.police, 'place', 0, 0, 88, Math.PI);
   callIf(ctx.police, 'place', 1, -7, 52, Math.PI);
   callIf(ctx.police, 'place', 2, 7, 58, Math.PI);
   stageTraffic(ctx.traffic, [
@@ -184,7 +189,12 @@ function stageFish(ctx) {
   const px = tip.x ?? 0;
   const pz = tip.z ?? 0;
   placeAt(ctx.player, px, 0, pz);
-  ctx.player.heading = 0; // face south, out across the bay
+  // Face south-east (0.4 rad): the cast follows Mara's facing, so the
+  // bobber lands ~11 m east of the pier centreline in open water instead
+  // of on the pier's east-edge post line (the old due-south cast put it
+  // at (-150,263), exactly on a pier post in screen space). If the cast
+  // is a fixed target the heading is harmless — Mara still faces the bay.
+  ctx.player.heading = 0.4;
   callIf(ctx.fishing, 'cast');
   // Biscuit the stray dog at Mara's heel, a few metres north-west of her.
   // ABSOLUTE spot from the measured runtime facts (Mara (-155.5,0,235)):
@@ -199,13 +209,17 @@ function stageFish(ctx) {
   }
   // Fixed camera NORTH-WEST of Mara, looking south-east past her and the
   // bobber toward the bay/island. ABSOLUTE coordinates from the measured
-  // runtime facts (Mara (-155.5,0,235), bobber (-150,0.3,259.4)): the old
-  // camera derived its position from the pier-tip variables and landed
-  // south of Mara at (-160,4.5,244), looking away from her, so she was
-  // behind the camera. Target sits between Mara and the bobber, nudged
-  // toward the bay; the lighthouse sits ~23 deg off axis and stays in
-  // frame.
-  ctx.setCamera(-168, 5, 222, -150, 1, 250);
+  // runtime facts (Mara (-155.5,0,235), bobber (-150,0.3,263)). Round-8
+  // defects fixed here: (1) the old camera put the bobber exactly on a
+  // pier post in screen space — the new camera (further west, higher)
+  // moves the bobber ~24 deg clear of the post; (2) the REAL lighthouse
+  // is at (80,0,395), not (40,330) — from the old camera it projected
+  // onto the island's building cluster. The new camera is further west
+  // and higher (y=10) with the target shifted east toward the lighthouse,
+  // so the tower clears the rooftops and stands against sky, while Mara
+  // (lower-left), Biscuit (at her heel) and the bobber (near centre)
+  // stay in frame.
+  ctx.setCamera(-185, 10, 215, -125, 4, 285);
   ctx.setState('playing');
 }
 

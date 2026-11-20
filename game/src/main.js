@@ -578,8 +578,14 @@ function updateCamera(dt) {
     const vehicle = state.inCar ? state.car : state.boat;
     state.cameraYaw = dampAngle(state.cameraYaw, vehicle.heading + Math.PI, 2.2, dt);
   }
+  // Chase screenshot pose only: shift the chase camera ~6 m east (world
+  // +x). The ram car rides Mara's line directly behind her, so from the
+  // centred camera it covers her; from the east-offset camera it appears
+  // beside her instead. The drive pose uses this same chase camera and is
+  // good, so the offset must never apply there.
+  const chaseShotX = (isShot && shotName === 'chase') ? 6 : 0;
   camTarget.set(
-    focus.x + Math.sin(state.cameraYaw) * Math.cos(state.cameraPitch) * state.cameraDist,
+    focus.x + Math.sin(state.cameraYaw) * Math.cos(state.cameraPitch) * state.cameraDist + chaseShotX,
     focus.y + eyeHeight + Math.sin(state.cameraPitch) * state.cameraDist,
     focus.z + Math.cos(state.cameraYaw) * Math.cos(state.cameraPitch) * state.cameraDist,
   );
@@ -1296,18 +1302,22 @@ function tickPlaying(dt) {
   // Chase screenshot pose: the RAM RUN warning has to be on screen at
   // capture (frame 40). The side text already carries it whenever
   // police.ramming is set; fire a matching toast once ramming starts
-  // (frames 30-39), then RE-FIRE it on the capture frame: the toast
-  // hides on a ~2.6 s wall-clock timeout, but frames 30 -> 40 take ~5 s
-  // wall at ~2 FPS headless, so the first toast is already gone by the
-  // picture. tickPlaying sees frame 39 on the iteration that sets
-  // __shotReady at frame 40, so that is the tick to re-fire on.
+  // (frames 30-39), then RE-FIRE it on the capture frame. All three
+  // fires use a 10 s duration: the default ~2.6 s toast hides before the
+  // picture (frames 30 -> 40 take ~5 s wall at ~2 FPS headless), and the
+  // round-8 capture showed the frame-39 re-fire did not leave a visible
+  // toast — a stale hide timer from the first toast can kill a re-fire.
+  // A third fire happens in loop() at the exact moment __shotReady is
+  // set, so the warning is guaranteed on screen at capture. The re-fire
+  // uses >= (same counter pattern as the original trigger) so it cannot
+  // be missed by an exact-equality check.
   if (isShot && shotName === 'chase' && police.ramming && frame >= 30 && !ramToasted) {
     ramToasted = true;
-    hud.toast('3-STAR RAM RUN!');
+    hud.toast('3-STAR RAM RUN!', 10000);
   }
-  if (isShot && shotName === 'chase' && frame === 39 && !ramToast40) {
+  if (isShot && shotName === 'chase' && frame >= 39 && !ramToast40) {
     ramToast40 = true;
-    hud.toast('3-STAR RAM RUN!');
+    hud.toast('3-STAR RAM RUN!', 10000);
   }
   if (state.wanted === 0 && state.health < state.maxHealth) {
     state.health = Math.min(state.maxHealth, state.health + 2 * dt);
@@ -1476,7 +1486,14 @@ function loop(now) {
   renderer.render(scene, camera);
 
   frame += 1;
-  if (isShot && frame === 40) window.__shotReady = true;
+  if (isShot && frame === 40) {
+    window.__shotReady = true;
+    // Chase pose: re-fire the RAM RUN warning with a 10 s duration at
+    // the exact moment the shot becomes ready, so it is guaranteed on
+    // screen at capture (~0.5-1 s later). The frame-39 re-fire in
+    // tickPlaying is kept as backup.
+    if (shotName === 'chase') hud.toast('3-STAR RAM RUN!', 10000);
+  }
 }
 
 requestAnimationFrame(loop);
