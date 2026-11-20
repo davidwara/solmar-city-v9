@@ -414,6 +414,17 @@ export function createHud() {
     }, ms === undefined ? 2600 : ms);
   }
 
+  // Contract §4 alias: hud.toast(text, duration?) — duration defaults
+  // to ~2.6s. Accepts seconds (e.g. 3) or milliseconds (e.g. 3000);
+  // values under 100 are treated as seconds.
+  function toast(text, duration) {
+    let ms;
+    if (duration === undefined || duration === null) ms = 2600;
+    else if (duration < 100) ms = duration * 1000;
+    else ms = duration;
+    showToast(text, ms);
+  }
+
   function showFlash() {
     if (!els.flash) return;
     els.flash.style.display = 'block';
@@ -431,5 +442,5 @@ export function createHud() {
     return listShowing;
   }
 
-  return { update, showToast, toggleMissionList, showFlash };
+  return { update, showToast, toast, toggleMissionList, showFlash };
 }
